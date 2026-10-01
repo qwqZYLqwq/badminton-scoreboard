@@ -8,3 +8,10 @@
 captures
 .externalNativeBuild
 .cxx
+
+# Application Packages
+*.apk
+*.aab
+
+# Local requirement and note texts
+*.txt
