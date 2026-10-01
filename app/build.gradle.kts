@@ -11,8 +11,8 @@ android {
         applicationId = "com.mimo.badmintonscore"
         minSdk = 24
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 5
+        versionName = "1.0.5"
 
         vectorDrawables {
             useSupportLibrary = true
