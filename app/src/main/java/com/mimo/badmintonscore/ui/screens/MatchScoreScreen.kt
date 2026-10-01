@@ -35,11 +35,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mimo.badmintonscore.model.MatchState
 import com.mimo.badmintonscore.model.TeamSide
+import com.mimo.badmintonscore.ui.components.ActiveShuttlecock
+import com.mimo.badmintonscore.ui.components.ImpactEffect
+import com.mimo.badmintonscore.ui.components.SmashAnimationOverlay
+import kotlin.random.Random
 import com.mimo.badmintonscore.ui.components.TopControlBar
 import com.mimo.badmintonscore.ui.components.WinnerDialog
 import com.mimo.badmintonscore.ui.theme.ServerGold
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
@@ -79,13 +87,12 @@ fun MatchScoreScreen(
         )
     }
 
-    // Top control bar visibility & auto-hide timer
-    var isTopBarVisible by remember { mutableStateOf(true) }
+    // Top control bar visibility & auto-hide timer (starts collapsed as top gray rectangle)
+    var isTopBarVisible by remember { mutableStateOf(false) }
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     fun refreshInteraction() {
         lastInteractionTime = System.currentTimeMillis()
-        isTopBarVisible = true
     }
 
     // Auto-hide after 3.5 seconds of inactivity
@@ -96,52 +103,126 @@ fun MatchScoreScreen(
         }
     }
 
+    // Smash animation states & screen micro-shake (supports concurrent multiple shuttlecocks on rapid taps!)
+    val activeShuttlecocks = remember { mutableStateListOf<ActiveShuttlecock>() }
+    val activeImpacts = remember { mutableStateListOf<ImpactEffect>() }
+    var shotCounter by remember { mutableLongStateOf(0L) }
+    val shakeOffsetX = remember { Animatable(0f) }
+    val shakeOffsetY = remember { Animatable(0f) }
+
+    suspend fun triggerScreenShake() {
+        coroutineScope {
+            launch {
+                shakeOffsetX.animateTo(8f, tween(25))
+                shakeOffsetX.animateTo(-7f, tween(25))
+                shakeOffsetX.animateTo(5f, tween(25))
+                shakeOffsetX.animateTo(-3f, tween(25))
+                shakeOffsetX.animateTo(1.5f, tween(25))
+                shakeOffsetX.animateTo(0f, tween(25))
+            }
+            launch {
+                shakeOffsetY.animateTo(-6f, tween(25))
+                shakeOffsetY.animateTo(6f, tween(25))
+                shakeOffsetY.animateTo(-4f, tween(25))
+                shakeOffsetY.animateTo(3f, tween(25))
+                shakeOffsetY.animateTo(-1f, tween(25))
+                shakeOffsetY.animateTo(0f, tween(25))
+            }
+        }
+    }
+
     // Score bounce animation: Every click shrinks then enlarges/restores
     val leftScale = remember { Animatable(1f) }
     val rightScale = remember { Animatable(1f) }
 
-    fun onLeftClick() {
-        if (matchState.isGameOver) return
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        matchState = matchState.addPoint(TeamSide.LEFT)
-        refreshInteraction()
-
-        scope.launch {
-            leftScale.snapTo(1f)
-            leftScale.animateTo(0.85f, animationSpec = tween(durationMillis = 60))
-            leftScale.animateTo(1.16f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
-            leftScale.animateTo(1.0f, animationSpec = tween(durationMillis = 80))
-        }
-    }
-
-    fun onRightClick() {
-        if (matchState.isGameOver) return
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        matchState = matchState.addPoint(TeamSide.RIGHT)
-        refreshInteraction()
-
-        scope.launch {
-            rightScale.snapTo(1f)
-            rightScale.animateTo(0.85f, animationSpec = tween(durationMillis = 60))
-            rightScale.animateTo(1.16f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
-            rightScale.animateTo(1.0f, animationSpec = tween(durationMillis = 80))
-        }
-    }
-
-    // Main layout
-    Box(
+    // Main layout with screen shake container (control bar ONLY expands by clicking the top gray rectangle)
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            // Detect swipe down anywhere to reveal top control bar
-            .pointerInput(Unit) {
-                detectDragGestures { _, dragAmount ->
-                    if (dragAmount.y > 15f) {
-                        isTopBarVisible = true
-                        lastInteractionTime = System.currentTimeMillis()
-                    }
-                }
-            }
+            .offset { IntOffset(shakeOffsetX.value.roundToInt(), shakeOffsetY.value.roundToInt()) }
     ) {
+        val widthPx = with(LocalDensity.current) { maxWidth.toPx() }
+        val heightPx = with(LocalDensity.current) { maxHeight.toPx() }
+
+        fun triggerSmashScore(scorerSide: TeamSide) {
+            if (matchState.isGameOver) return
+            // Do NOT auto-open the control bar on score click!
+
+            // Tactile feedback on launch
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+
+            shotCounter++
+            val shotId = System.currentTimeMillis() * 1000 + (shotCounter % 1000)
+            val isLeft = scorerSide == TeamSide.LEFT
+            val startX = if (isLeft) widthPx * 0.28f else widthPx * 0.72f
+            val endX = if (isLeft) widthPx * 0.72f else widthPx * 0.28f
+            // Slight trajectory variation for rapid taps so multiple concurrent shuttlecocks don't overlap completely
+            val randomYOffset = (Random.nextFloat() - 0.5f) * heightPx * 0.10f
+            val startY = heightPx * 0.48f + randomYOffset
+            val endY = heightPx * 0.48f + (Random.nextFloat() - 0.5f) * heightPx * 0.10f
+            val arcHeight = heightPx * (0.26f + Random.nextFloat() * 0.05f)
+
+            // 1. Launch new shuttlecock projectile across court (concurrent with any already flying)
+            val newShuttlecock = ActiveShuttlecock(
+                id = shotId,
+                scorerSide = scorerSide,
+                startX = startX,
+                startY = startY,
+                endX = endX,
+                endY = endY,
+                arcPeakHeight = arcHeight
+            )
+            activeShuttlecocks.add(newShuttlecock)
+
+            scope.launch {
+                // Flight takes 360ms
+                delay(360L)
+                activeShuttlecocks.removeAll { it.id == shotId }
+
+                // 2. Smash hits opponent side! (+1 badge appears on scorer/winner side)
+                val newImpact = ImpactEffect(
+                    id = shotId,
+                    hitX = endX,
+                    hitY = endY,
+                    scorerX = startX,
+                    scorerY = startY - heightPx * 0.12f,
+                    scorerSide = scorerSide
+                )
+                activeImpacts.add(newImpact)
+
+                // Strong tactile impact
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                // 3. Score increments by 1
+                matchState = matchState.addPoint(scorerSide)
+
+                // 4. Trigger lively score scale bounce on scorer's side
+                launch {
+                    val scale = if (isLeft) leftScale else rightScale
+                    scale.snapTo(1f)
+                    scale.animateTo(0.85f, animationSpec = tween(durationMillis = 50))
+                    scale.animateTo(1.22f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+                    scale.animateTo(1.0f, animationSpec = tween(durationMillis = 80))
+                }
+
+                // 5. Trigger lively screen micro-shake
+                launch {
+                    triggerScreenShake()
+                }
+
+                // Auto clear this impact after 450ms
+                delay(450L)
+                activeImpacts.removeAll { it.id == shotId }
+            }
+        }
+
+        fun onLeftClick() {
+            triggerSmashScore(TeamSide.LEFT)
+        }
+
+        fun onRightClick() {
+            triggerSmashScore(TeamSide.RIGHT)
+        }
         // Split screen: Left half vs Right half
         Row(modifier = Modifier.fillMaxSize()) {
             // LEFT SIDE: BLUE TEAM
@@ -299,6 +380,12 @@ fun MatchScoreScreen(
             }
         }
 
+        // SMASH SHUTTLECOCK & IMPACT ANIMATION OVERLAY
+        SmashAnimationOverlay(
+            activeShuttlecocks = activeShuttlecocks,
+            activeImpacts = activeImpacts
+        )
+
         // TOP FLOATING CONTROL BAR (Auto-hiding, swipe down to expand)
         TopControlBar(
             isVisible = isTopBarVisible,
@@ -320,37 +407,71 @@ fun MatchScoreScreen(
             },
             onSwapSides = {
                 refreshInteraction()
+                activeShuttlecocks.clear()
+                activeImpacts.clear()
                 matchState = matchState.swapSides()
             },
             onUndo = {
                 refreshInteraction()
+                activeShuttlecocks.clear()
+                activeImpacts.clear()
                 matchState = matchState.undo()
             },
             onReset = {
                 refreshInteraction()
+                activeShuttlecocks.clear()
+                activeImpacts.clear()
                 matchState = matchState.reset()
             },
             onExit = {
+                activeShuttlecocks.clear()
+                activeImpacts.clear()
                 onExitToHome()
             },
             onExpandBar = {
-                refreshInteraction()
+                isTopBarVisible = true
+                lastInteractionTime = System.currentTimeMillis()
+            },
+            onCollapseBar = {
+                isTopBarVisible = false
             }
         )
 
-        // WINNER POPUP DIALOG
-        WinnerDialog(
-            matchState = matchState,
-            onRestart = {
-                matchState = matchState.reset()
-            },
-            onSwapAndRestart = {
-                matchState = matchState.swapSides().reset()
-            },
-            onBackToHome = {
-                onExitToHome()
+        // WINNER POPUP DIALOG (Slight delay on match point so final winning smash & score update finishes cleanly)
+        var showWinnerDialog by remember { mutableStateOf(false) }
+
+        LaunchedEffect(matchState.isGameOver) {
+            if (matchState.isGameOver) {
+                delay(550L)
+                showWinnerDialog = true
+            } else {
+                showWinnerDialog = false
             }
-        )
+        }
+
+        if (showWinnerDialog && matchState.isGameOver) {
+            WinnerDialog(
+                matchState = matchState,
+                onRestart = {
+                    showWinnerDialog = false
+                    activeShuttlecocks.clear()
+                    activeImpacts.clear()
+                    matchState = matchState.reset()
+                },
+                onSwapAndRestart = {
+                    showWinnerDialog = false
+                    activeShuttlecocks.clear()
+                    activeImpacts.clear()
+                    matchState = matchState.swapSides().reset()
+                },
+                onBackToHome = {
+                    showWinnerDialog = false
+                    activeShuttlecocks.clear()
+                    activeImpacts.clear()
+                    onExitToHome()
+                }
+            )
+        }
     }
 }
 

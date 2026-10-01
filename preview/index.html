@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>羽毛球计分器 - 赛制选择界面 UI 设计探索</title>
+    <style>
+        :root {
+            --bg-canvas: #090d16;
+            --panel-bg: #111827;
+            --accent-primary: #38bdf8;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Header Control Bar */
+        .workspace-header {
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 14px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .workspace-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .workspace-title h1 {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .badge-pill {
+            font-size: 11px;
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-weight: 600;
+        }
+
+        /* Design Style Switcher Tabs */
+        .style-switcher {
+            display: flex;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            gap: 4px;
+        }
+
+        .style-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .style-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .style-btn.active {
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+        }
+
+        .view-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .view-toggle-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .view-toggle-btn.active {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: #38bdf8;
+            color: #38bdf8;
+        }
+
+        /* Main Preview Canvas Area */
+        .preview-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            position: relative;
+        }
+
+        /* Device Phone Mockup Frame */
+        .device-frame {
+            background: #030712;
+            border: 10px solid #1f2937;
+            border-radius: 48px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .device-frame.portrait {
+            width: 390px;
+            height: 780px;
+        }
+
+        .device-frame.landscape {
+            width: 780px;
+            height: 400px;
+        }
+
+        /* Phone Island / Notch */
+        .phone-island {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 22px;
+            background: #000;
+            border-radius: 20px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .camera-lens {
+            width: 9px;
+            height: 9px;
+            background: #111827;
+            border-radius: 50%;
+            border: 1px solid #1e293b;
+        }
+
+        /* Screen Viewport */
+        .screen-content {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Description Sidebar / Drawer */
+        .design-meta-bar {
+            max-width: 900px;
+            margin: 0 auto 30px auto;
+            background: rgba(17, 24, 39, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .meta-text h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 4px;
+        }
+
+        .meta-text p {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
+        .tag-list {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* ==============================================================
+           DESIGN 1: 赛博球场 / CYBER COURT (暗黑极客 · 赛博光网 · 电竞对决)
+           ============================================================== */
+        .theme-cyber {
+            background: radial-gradient(circle at 50% 15%, #0f1c3f 0%, #060913 60%, #030408 100%);
+            color: #ffffff;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 38px 24px 20px 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Badminton Court Line Grid Background */
+        .cyber-court-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            opacity: 0.12;
+            background-image: 
+                linear-gradient(to right, rgba(0, 229, 255, 0.8) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 229, 255, 0.8) 1px, transparent 1px);
+            background-size: 40px 40px;
+            mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 80%);
+        }
+
+        .cyber-glow-net {
+            position: absolute;
+            top: 55%;
+            left: -20%;
+            right: -20%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00f0ff, #3b82f6, transparent);
+            box-shadow: 0 0 20px #00f0ff;
+            opacity: 0.35;
+        }
+
+        .cyber-brand {
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            margin-top: 10px;
+        }
+
+        .cyber-logo-orb {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 14px auto;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(59, 130, 246, 0.2));
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 34px;
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.25), inset 0 0 15px rgba(0, 240, 255, 0.2);
+            animation: cyberPulse 3s infinite ease-in-out;
+        }
+
+        @keyframes cyberPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 25px rgba(0, 240, 255, 0.25); }
+            50% { transform: scale(1.05); box-shadow: 0 0 35px rgba(0, 240, 255, 0.45); }
+        }
+
+        .cyber-title {
+            font-size: 26px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: linear-gradient(180deg, #ffffff 30%, #7dd3fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .cyber-subtitle {
+            font-size: 10px;
+            font-weight: 700;
+            color: #00f0ff;
+            letter-spacing: 3px;
+            margin-top: 4px;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+
+        /* Cyber VS Arena Pill */
+        .cyber-vs-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 18px;
+            padding: 10px 16px;
+            margin: 18px auto 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(12px);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 2;
+        }
+
+        .cyber-vs-card:hover {
+            border-color: #00f0ff;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .team-tag {
+            font-size: 13px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .team-blue { color: #38bdf8; text-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+        .team-red { color: #f43f5e; text-shadow: 0 0 10px rgba(244, 63, 94, 0.4); }
+        .vs-badge {
+            font-size: 10px;
+            font-weight: 900;
+            color: #facc15;
+            background: rgba(250, 204, 21, 0.15);
+            border: 1px solid rgba(250, 204, 21, 0.4);
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-style: italic;
+        }
+
+        /* Cyber Mode Cards */
+        .cyber-section-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #94a3b8;
+            letter-spacing: 1.5px;
+            margin: 28px 0 12px 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cyber-section-title::before {
+            content: '';
+            width: 4px;
+            height: 12px;
+            background: #00f0ff;
+            border-radius: 2px;
+            box-shadow: 0 0 8px #00f0ff;
+        }
+
+        .cyber-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 22px;
+            padding: 20px;
+            margin-bottom: 14px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(10px);
+        }
+
+        .cyber-card:hover {
+            transform: scale(1.02) translateY(-2px);
+            border-color: rgba(0, 240, 255, 0.6);
+            box-shadow: 0 12px 30px -10px rgba(0, 240, 255, 0.3);
+        }
+
+        .cyber-card.card-31:hover {
+            border-color: rgba(251, 146, 60, 0.7);
+            box-shadow: 0 12px 30px -10px rgba(251, 146, 60, 0.3);
+        }
+
+        .cyber-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 90px;
+            height: 90px;
+            background: radial-gradient(circle at top right, rgba(0, 240, 255, 0.2), transparent 70%);
+            pointer-events: none;
+        }
+
+        .cyber-card.card-31::after {
+            background: radial-gradient(circle at top right, rgba(251, 146, 60, 0.25), transparent 70%);
+        }
+
+        .card-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .cyber-icon-box {
+            width: 50px;
+            height: 50px;
+            border-radius: 16px;
+            background: rgba(0, 240, 255, 0.12);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #00f0ff;
+        }
+
+        .cyber-card.card-31 .cyber-icon-box {
+            background: rgba(251, 146, 60, 0.12);
+            border-color: rgba(251, 146, 60, 0.3);
+            color: #fb923c;
+        }
+
+        .card-info h4 {
+            font-size: 18px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 3px;
+        }
+
+        .card-info p {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .cyber-badge {
+            font-size: 15px;
+            font-weight: 900;
+            padding: 8px 14px;
+            border-radius: 12px;
+            background: rgba(0, 240, 255, 0.15);
+            color: #00f0ff;
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            letter-spacing: 0.5px;
+        }
+
+        .cyber-card.card-31 .cyber-badge {
+            background: rgba(251, 146, 60, 0.15);
+            color: #fb923c;
+            border-color: rgba(251, 146, 60, 0.4);
+        }
+
+        .cyber-footer {
+            margin-top: auto;
+            text-align: center;
+            font-size: 11px;
+            color: #64748b;
+            padding-bottom: 12px;
+        }
+
+        /* ==============================================================
+           DESIGN 2: 活力波普街机 / NEO-POP ARCADE (复古潮玩 · 实体按键 · 俏皮活泼)
+           ============================================================== */
+        .theme-pop {
+            background: #fbf7ee;
+            color: #1e1b18;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 38px 24px 20px 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Neo-Pop Polka Dots Background */
+        .pop-dots-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.06;
+            background-image: radial-gradient(#1e1b18 2px, transparent 2px);
+            background-size: 20px 20px;
+            pointer-events: none;
+        }
+
+        .pop-header {
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .pop-mascot {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 12px auto;
+            background: #ffeb3b;
+            border: 3.5px solid #1e1b18;
+            border-radius: 28px;
+            box-shadow: 4px 4px 0px #1e1b18;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px;
+            transform: rotate(-3deg);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .pop-mascot:hover {
+            transform: rotate(6deg) scale(1.08);
+        }
+
+        .pop-title {
+            font-size: 28px;
+            font-weight: 900;
+            color: #1e1b18;
+            letter-spacing: -0.5px;
+            display: inline-block;
+            background: #fff;
+            padding: 2px 14px;
+            border: 3px solid #1e1b18;
+            border-radius: 14px;
+            box-shadow: 3px 3px 0px #1e1b18;
+            transform: rotate(1deg);
+        }
+
+        .pop-subtitle {
+            font-size: 11px;
+            font-weight: 800;
+            color: #6366f1;
+            letter-spacing: 2px;
+            margin-top: 8px;
+            text-transform: uppercase;
+        }
+
+        /* Pop Team Duel Pill */
+        .pop-team-pill {
+            background: #ffffff;
+            border: 3px solid #1e1b18;
+            box-shadow: 4px 4px 0px #1e1b18;
+            border-radius: 16px;
+            padding: 10px 18px;
+            margin: 16px auto 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .pop-team-pill:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px #1e1b18;
+        }
+
+        .pop-team-pill:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #1e1b18;
+        }
+
+        .pop-blue { color: #2563eb; font-weight: 900; font-size: 15px; }
+        .pop-red { color: #dc2626; font-weight: 900; font-size: 15px; }
+        .pop-vs {
+            background: #ff5722;
+            color: #fff;
+            font-weight: 900;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 8px;
+            border: 2px solid #1e1b18;
+        }
+
+        /* Pop Mode Cards (Arcade style cartridges) */
+        .pop-modes {
+            margin-top: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .pop-card {
+            background: #ffffff;
+            border: 3.5px solid #1e1b18;
+            border-radius: 24px;
+            box-shadow: 5px 5px 0px #1e1b18;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+
+        .pop-card:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 8px 8px 0px #1e1b18;
+        }
+
+        .pop-card:active {
+            transform: translate(3px, 3px);
+            box-shadow: 2px 2px 0px #1e1b18;
+        }
+
+        .pop-card.card-15 {
+            background: linear-gradient(135deg, #ffffff 60%, #e0f2fe 100%);
+        }
+
+        .pop-card.card-31 {
+            background: linear-gradient(135deg, #ffffff 60%, #fef3c7 100%);
+        }
+
+        .pop-icon {
+            width: 52px;
+            height: 52px;
+            border: 3px solid #1e1b18;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+        }
+
+        .pop-card.card-15 .pop-icon { background: #38bdf8; box-shadow: 3px 3px 0px #1e1b18; }
+        .pop-card.card-31 .pop-icon { background: #facc15; box-shadow: 3px 3px 0px #1e1b18; }
+
+        .pop-badge {
+            font-size: 16px;
+            font-weight: 900;
+            padding: 8px 14px;
+            border: 2.5px solid #1e1b18;
+            border-radius: 12px;
+            box-shadow: 2px 2px 0px #1e1b18;
+        }
+
+        .pop-card.card-15 .pop-badge { background: #0284c7; color: #fff; }
+        .pop-card.card-31 .pop-badge { background: #ea580c; color: #fff; }
+
+        .pop-footer {
+            margin-top: auto;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #78716c;
+            padding-bottom: 10px;
+        }
+
+        /* ==============================================================
+           DESIGN 3: 极光流体毛玻璃 / AURORA GLASS (未来极简 · 灵动光斑 · 高端清透)
+           ============================================================== */
+        .theme-aurora {
+            background: #0b1120;
+            color: #ffffff;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 38px 24px 20px 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Floating Liquid Gradient Blobs */
+        .aurora-blob-1 {
+            position: absolute;
+            top: -10%;
+            left: 20%;
+            width: 260px;
+            height: 260px;
+            background: radial-gradient(circle, rgba(14, 165, 233, 0.45) 0%, transparent 70%);
+            filter: blur(40px);
+            animation: floatBlob1 8s infinite alternate ease-in-out;
+            pointer-events: none;
+        }
+
+        .aurora-blob-2 {
+            position: absolute;
+            bottom: 15%;
+            right: -10%;
+            width: 240px;
+            height: 240px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, transparent 70%);
+            filter: blur(45px);
+            animation: floatBlob2 10s infinite alternate ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes floatBlob1 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(-30px, 40px) scale(1.15); }
+        }
+
+        @keyframes floatBlob2 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(25px, -35px) scale(1.1); }
+        }
+
+        .aurora-header {
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .aurora-icon-ring {
+            width: 76px;
+            height: 76px;
+            margin: 0 auto 16px auto;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+        }
+
+        .aurora-title {
+            font-size: 27px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(180deg, #ffffff 40%, rgba(255, 255, 255, 0.7) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .aurora-subtitle {
+            font-size: 11px;
+            font-weight: 600;
+            color: #93c5fd;
+            letter-spacing: 2px;
+            margin-top: 4px;
+            opacity: 0.85;
+        }
+
+        /* Glass Pill */
+        .aurora-glass-pill {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
+            padding: 8px 18px;
+            margin: 18px auto 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 2;
+        }
+
+        .aurora-glass-pill:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* Liquid Glass Cards */
+        .aurora-modes {
+            margin-top: 28px;
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .aurora-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+            border-radius: 26px;
+            padding: 22px;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .aurora-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+        }
+
+        .aurora-card:hover {
+            transform: translateY(-4px) scale(1.01);
+            background: rgba(255, 255, 255, 0.09);
+            border-color: rgba(255, 255, 255, 0.28);
+            box-shadow: 0 24px 50px -10px rgba(14, 165, 233, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+        }
+
+        .aurora-card.card-31:hover {
+            box-shadow: 0 24px 50px -10px rgba(245, 158, 11, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+        }
+
+        .aurora-icon-box {
+            width: 52px;
+            height: 52px;
+            border-radius: 18px;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #38bdf8;
+        }
+
+        .aurora-card.card-31 .aurora-icon-box {
+            background: rgba(251, 191, 36, 0.15);
+            border-color: rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+        }
+
+        .aurora-badge {
+            font-size: 15px;
+            font-weight: 800;
+            padding: 8px 16px;
+            border-radius: 14px;
+            background: rgba(56, 189, 248, 0.18);
+            color: #7dd3fc;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+        }
+
+        .aurora-card.card-31 .aurora-badge {
+            background: rgba(251, 191, 36, 0.18);
+            color: #fde68a;
+            border-color: rgba(251, 191, 36, 0.35);
+        }
+
+        .aurora-footer {
+            margin-top: auto;
+            text-align: center;
+            font-size: 11px;
+            color: #64748b;
+            padding-bottom: 12px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Interactive Click Toast */
+        .toast-notify {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1e293b;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid #38bdf8;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .toast-notify.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Controls -->
+    <header class="workspace-header">
+        <div class="workspace-title">
+            <span style="font-size: 24px;">🏸</span>
+            <div>
+                <h1>羽毛球计分器 · 赛制选择界面 UI 设计方案</h1>
+            </div>
+            <span class="badge-pill">3套原创设计提案</span>
+        </div>
+
+        <!-- 3 Design Switcher -->
+        <div class="style-switcher">
+            <button class="style-btn active" onclick="switchDesign('cyber')">
+                <span>⚡</span> 风格一：赛博竞技场
+            </button>
+            <button class="style-btn" onclick="switchDesign('pop')">
+                <span>🎮</span> 风格二：活力波普潮玩
+            </button>
+            <button class="style-btn" onclick="switchDesign('aurora')">
+                <span>🧊</span> 风格三：极光流体玻璃
+            </button>
+        </div>
+
+        <!-- View Controls (Portrait / Landscape) -->
+        <div class="view-controls">
+            <button class="view-toggle-btn active" id="btn-portrait" onclick="setOrientation('portrait')">
+                <span>📱</span> 手机竖屏
+            </button>
+            <button class="view-toggle-btn" id="btn-landscape" onclick="setOrientation('landscape')">
+                <span>🖥️</span> 手机横屏
+            </button>
+        </div>
+    </header>
+
+    <!-- Design Description Bar -->
+    <div style="padding: 20px 20px 0 20px;">
+        <div class="design-meta-bar" id="meta-bar">
+            <div class="meta-text">
+                <h3 id="meta-title">⚡ 风格一：赛博竞技场 (Cyber Court)</h3>
+                <p id="meta-desc">采用深邃黑曜石背景与羽毛球场地透视线条，配合电光青与能量橙霓虹光效，具有极强的电竞赛事临场感，沉浸而高级。</p>
+            </div>
+            <div class="tag-list" id="meta-tags">
+                <span class="tag">沉浸式暗色</span>
+                <span class="tag">球场透视网格</span>
+                <span class="tag">霓虹光效</span>
+                <span class="tag">电竞风对阵</span>
+                <span class="tag">科技感</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Interactive Phone Preview Area -->
+    <main class="preview-container">
+        <div class="device-frame portrait" id="device">
+            <div class="phone-island">
+                <div class="camera-lens"></div>
+            </div>
+
+            <div class="screen-content" id="screen">
+                <!-- DESIGN 1: CYBER COURT (DEFAULT) -->
+                <div class="theme-cyber" id="theme-view">
+                    <div class="cyber-court-lines"></div>
+                    <div class="cyber-glow-net"></div>
+
+                    <!-- Header -->
+                    <div class="cyber-brand">
+                        <div class="cyber-logo-orb">🏸</div>
+                        <div class="cyber-title">羽毛球比赛计分</div>
+                        <div class="cyber-subtitle">BADMINTON SCOREBOARD</div>
+
+                        <!-- VS Team pill -->
+                        <div class="cyber-vs-card" onclick="editTeamNames()">
+                            <span class="team-tag team-blue">● 蓝方战队</span>
+                            <span class="vs-badge">VS</span>
+                            <span class="team-tag team-red">● 红方战队</span>
+                            <span style="font-size: 12px; color: #94a3b8; margin-left: 2px;">✏️</span>
+                        </div>
+                    </div>
+
+                    <!-- Mode Select Section -->
+                    <div class="cyber-section-title">CHOOSE MATCH MODE / 赛制选择</div>
+
+                    <!-- 15 Pts Card -->
+                    <div class="cyber-card card-15" onclick="triggerMode(15)">
+                        <div class="card-row">
+                            <div class="card-left">
+                                <div class="cyber-icon-box">⚡</div>
+                                <div class="card-info">
+                                    <h4>15 分制 · 极速对决</h4>
+                                    <p>14平后净胜2分 · 封顶21分</p>
+                                </div>
+                            </div>
+                            <div class="cyber-badge">15 分</div>
+                        </div>
+                    </div>
+
+                    <!-- 31 Pts Card -->
+                    <div class="cyber-card card-31" onclick="triggerMode(31)">
+                        <div class="card-row">
+                            <div class="card-left">
+                                <div class="cyber-icon-box">🔥</div>
+                                <div class="card-info">
+                                    <h4>31 分制 · 耐力巅峰</h4>
+                                    <p>30平后净胜2分 · 封顶36分</p>
+                                </div>
+                            </div>
+                            <div class="cyber-badge">31 分</div>
+                        </div>
+                    </div>
+
+                    <div class="cyber-footer">
+                        💡 进入比赛后自动转为横屏，左右点击大色块直接扣杀加分
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast feedback on click -->
+            <div class="toast-notify" id="toast">已选择 15 分制！正在进入赛场...</div>
+        </div>
+    </main>
+
+    <script>
+        // Design Meta Information
+        const designDetails = {
+            cyber: {
+                title: "⚡ 风格一：赛博竞技场 (Cyber Court)",
+                desc: "采用深邃黑曜石背景与羽毛球场地透视线条，配合电光青与能量橙霓虹光效，具有极强的电竞赛事临场感，沉浸而高级。",
+                tags: ["沉浸式暗色", "球场透视网格", "霓虹光效", "电竞风对阵", "科技感"],
+                render: `
+                    <div class="theme-cyber">
+                        <div class="cyber-court-lines"></div>
+                        <div class="cyber-glow-net"></div>
+
+                        <div class="cyber-brand">
+                            <div class="cyber-logo-orb">🏸</div>
+                            <div class="cyber-title">羽毛球比赛计分</div>
+                            <div class="cyber-subtitle">BADMINTON SCOREBOARD</div>
+
+                            <div class="cyber-vs-card" onclick="editTeamNames()">
+                                <span class="team-tag team-blue">● 蓝方战队</span>
+                                <span class="vs-badge">VS</span>
+                                <span class="team-tag team-red">● 红方战队</span>
+                                <span style="font-size: 12px; color: #94a3b8; margin-left: 2px;">✏️</span>
+                            </div>
+                        </div>
+
+                        <div class="cyber-section-title">CHOOSE MATCH MODE / 赛制选择</div>
+
+                        <div class="cyber-card card-15" onclick="triggerMode(15)">
+                            <div class="card-row">
+                                <div class="card-left">
+                                    <div class="cyber-icon-box">⚡</div>
+                                    <div class="card-info">
+                                        <h4>15 分制 · 极速对决</h4>
+                                        <p>14平后净胜2分 · 封顶21分</p>
+                                    </div>
+                                </div>
+                                <div class="cyber-badge">15 分</div>
+                            </div>
+                        </div>
+
+                        <div class="cyber-card card-31" onclick="triggerMode(31)">
+                            <div class="card-row">
+                                <div class="card-left">
+                                    <div class="cyber-icon-box">🔥</div>
+                                    <div class="card-info">
+                                        <h4>31 分制 · 耐力巅峰</h4>
+                                        <p>30平后净胜2分 · 封顶36分</p>
+                                    </div>
+                                </div>
+                                <div class="cyber-badge">31 分</div>
+                            </div>
+                        </div>
+
+                        <div class="cyber-footer">
+                            💡 进入比赛后自动转为横屏，左右点击大色块直接扣杀加分
+                        </div>
+                    </div>
+                `
+            },
+            pop: {
+                title: "🎮 风格二：活力波普潮玩 (Neo-Pop Arcade)",
+                desc: "灵感来源于复古街机与掌机潮玩。采用粗黑轮廓线条、鲜明碰撞的活力明黄与纯白天鹅绒质感，配合实体机械按键微缩触感，活泼有趣，极具年轻活力。",
+                tags: ["潮玩插画感", "粗边框波普风", "实体按键凹凸质感", "暖调米白背景", "俏皮活泼"],
+                render: `
+                    <div class="theme-pop">
+                        <div class="pop-dots-bg"></div>
+
+                        <div class="pop-header">
+                            <div class="pop-mascot">🏸</div>
+                            <div class="pop-title">羽球大决战</div>
+                            <div class="pop-subtitle">★ ARCADE SCOREKEEPER ★</div>
+
+                            <div class="pop-team-pill" onclick="editTeamNames()">
+                                <span class="pop-blue">蓝方选手</span>
+                                <span class="pop-vs">VS</span>
+                                <span class="pop-red">红方选手</span>
+                                <span style="font-size: 13px;">✏️</span>
+                            </div>
+                        </div>
+
+                        <div class="pop-modes">
+                            <div class="pop-card card-15" onclick="triggerMode(15)">
+                                <div class="card-row">
+                                    <div class="card-left">
+                                        <div class="pop-icon">⚡</div>
+                                        <div class="card-info">
+                                            <h4 style="font-size: 19px; font-weight: 900; color: #1e1b18;">15 分竞速局</h4>
+                                            <p style="font-weight: 700; color: #475569;">14平净胜2分 · 封顶21分</p>
+                                        </div>
+                                    </div>
+                                    <div class="pop-badge">15 分</div>
+                                </div>
+                            </div>
+
+                            <div class="pop-card card-31" onclick="triggerMode(31)">
+                                <div class="card-row">
+                                    <div class="card-left">
+                                        <div class="pop-icon">👑</div>
+                                        <div class="card-info">
+                                            <h4 style="font-size: 19px; font-weight: 900; color: #1e1b18;">31 分大师赛</h4>
+                                            <p style="font-weight: 700; color: #475569;">30平净胜2分 · 封顶36分</p>
+                                        </div>
+                                    </div>
+                                    <div class="pop-badge">31 分</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pop-footer">
+                            💡 进入比赛后自动切为横屏 · 点大色块扣杀加分
+                        </div>
+                    </div>
+                `
+            },
+            aurora: {
+                title: "🧊 风格三：极光流体玻璃 (Aurora Liquid Glass)",
+                desc: "参考顶级旗舰运动健身App视觉规范。背景漂浮极光般柔和灵动的液态光斑，配合超清透多层毛玻璃（Backdrop Blur）、流光高光边框，极致纯净轻奢。",
+                tags: ["超清透毛玻璃", "极光流体光斑", "纯净克制", "高级感无边界", "现代奢华"],
+                render: `
+                    <div class="theme-aurora">
+                        <div class="aurora-blob-1"></div>
+                        <div class="aurora-blob-2"></div>
+
+                        <div class="aurora-header">
+                            <div class="aurora-icon-ring">🏸</div>
+                            <div class="aurora-title">羽毛球比赛计分</div>
+                            <div class="aurora-subtitle">BADMINTON SCOREBOARD</div>
+
+                            <div class="aurora-glass-pill" onclick="editTeamNames()">
+                                <span style="color: #38bdf8; font-weight: 700; font-size: 14px;">蓝方</span>
+                                <span style="font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 800;">VS</span>
+                                <span style="color: #f43f5e; font-weight: 700; font-size: 14px;">红方</span>
+                                <span style="font-size: 12px; opacity: 0.6;">✏️</span>
+                            </div>
+                        </div>
+
+                        <div class="aurora-modes">
+                            <div class="aurora-card card-15" onclick="triggerMode(15)">
+                                <div class="card-row">
+                                    <div class="card-left">
+                                        <div class="aurora-icon-box">⚡</div>
+                                        <div class="card-info">
+                                            <h4 style="font-size: 18px; font-weight: 700; color: #fff;">15 分标准赛</h4>
+                                            <p style="color: #94a3b8; font-size: 12px;">14平后净胜2分 · 封顶21分</p>
+                                        </div>
+                                    </div>
+                                    <div class="aurora-badge">15 分</div>
+                                </div>
+                            </div>
+
+                            <div class="aurora-card card-31" onclick="triggerMode(31)">
+                                <div class="card-row">
+                                    <div class="card-left">
+                                        <div class="aurora-icon-box">⏱️</div>
+                                        <div class="card-info">
+                                            <h4 style="font-size: 18px; font-weight: 700; color: #fff;">31 分长局对抗</h4>
+                                            <p style="color: #94a3b8; font-size: 12px;">30平后净胜2分 · 封顶36分</p>
+                                        </div>
+                                    </div>
+                                    <div class="aurora-badge">31 分</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="aurora-footer">
+                            💡 进入比赛后自动转为横屏，左右点击大色块直接扣杀加分
+                        </div>
+                    </div>
+                `
+            }
+        };
+
+        // Switch active design
+        function switchDesign(key) {
+            const btns = document.querySelectorAll('.style-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            const info = designDetails[key];
+            document.getElementById('meta-title').innerText = info.title;
+            document.getElementById('meta-desc').innerText = info.desc;
+
+            const tagsContainer = document.getElementById('meta-tags');
+            tagsContainer.innerHTML = info.tags.map(t => `<span class="tag">${t}</span>`).join('');
+
+            document.getElementById('screen').innerHTML = info.render;
+        }
+
+        // Switch device orientation (portrait vs landscape)
+        function setOrientation(mode) {
+            const frame = document.getElementById('device');
+            const btnP = document.getElementById('btn-portrait');
+            const btnL = document.getElementById('btn-landscape');
+
+            if (mode === 'landscape') {
+                frame.classList.remove('portrait');
+                frame.classList.add('landscape');
+                btnP.classList.remove('active');
+                btnL.classList.add('active');
+            } else {
+                frame.classList.remove('landscape');
+                frame.classList.add('portrait');
+                btnL.classList.remove('active');
+                btnP.classList.add('active');
+            }
+        }
+
+        // Interactive simulate match start
+        function triggerMode(pts) {
+            const toast = document.getElementById('toast');
+            toast.innerText = `🏸 进入 ${pts} 分制比赛！扣杀蓄力中...`;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 1800);
+        }
+
+        // Interactive simulate edit team names
+        function editTeamNames() {
+            const toast = document.getElementById('toast');
+            toast.innerText = `✏️ 弹出自定义战队名称弹窗...`;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 1800);
+        }
+    </script>
+</body>
+</html>

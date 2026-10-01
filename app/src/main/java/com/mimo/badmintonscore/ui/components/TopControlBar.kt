@@ -39,13 +39,14 @@ fun TopControlBar(
     onReset: () -> Unit,
     onExit: () -> Unit,
     onExpandBar: () -> Unit,
+    onCollapseBar: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.TopCenter
     ) {
-        // Subtle expand handle when hidden
+        // Top gray rectangle when collapsed
         AnimatedVisibility(
             visible = !isVisible,
             enter = fadeIn() + slideInVertically { -it },
@@ -53,10 +54,10 @@ fun TopControlBar(
         ) {
             Surface(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+                    .clip(RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp))
                     .clickable { onExpandBar() },
-                color = Color(0xCC0F172A),
-                shadowElevation = 4.dp
+                color = Color(0xDD334155),
+                shadowElevation = 6.dp
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
@@ -65,15 +66,15 @@ fun TopControlBar(
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = "展开控制栏",
-                        tint = Color(0xFF94A3B8),
-                        modifier = Modifier.size(18.dp)
+                        tint = Color(0xFFF1F5F9),
+                        modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "下滑或点击展开控制栏",
-                        color = Color(0xFF94A3B8),
+                        text = "控制栏",
+                        color = Color(0xFFF1F5F9),
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
@@ -273,6 +274,19 @@ fun TopControlBar(
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+
+                    // Quick collapse button
+                    IconButton(
+                        onClick = onCollapseBar,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowUp,
+                            contentDescription = "收起控制栏",
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

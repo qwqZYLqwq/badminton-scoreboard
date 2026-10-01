@@ -9,6 +9,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
@@ -33,27 +36,52 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var currentScreen by remember { mutableStateOf<Screen>(Screen.ModeSelect) }
 
-                    when (val screen = currentScreen) {
-                        is Screen.ModeSelect -> {
-                            ModeSelectScreen(
-                                onSelectMode = { score, left, right ->
-                                    currentScreen = Screen.Match(score, left, right)
-                                }
-                            )
-                        }
-                        is Screen.Match -> {
-                            BackHandler {
-                                currentScreen = Screen.ModeSelect
+                    AnimatedContent(
+                        targetState = currentScreen,
+                        transitionSpec = {
+                            if (targetState is Screen.Match) {
+                                // 计分界面从上往下顺畅滑入
+                                (slideInVertically(
+                                    animationSpec = tween(420, easing = FastOutSlowInEasing),
+                                    initialOffsetY = { -it }
+                                ) + fadeIn(animationSpec = tween(420)))
+                                .togetherWith(
+                                    fadeOut(animationSpec = tween(220))
+                                )
+                            } else {
+                                (fadeIn(animationSpec = tween(280)))
+                                .togetherWith(
+                                    slideOutVertically(
+                                        animationSpec = tween(380, easing = FastOutSlowInEasing),
+                                        targetOffsetY = { -it }
+                                    ) + fadeOut(animationSpec = tween(220))
+                                )
                             }
-
-                            MatchScoreScreen(
-                                targetScore = screen.targetScore,
-                                initialLeftName = screen.leftName,
-                                initialRightName = screen.rightName,
-                                onExitToHome = {
+                        },
+                        label = "ScreenTransition"
+                    ) { screen ->
+                        when (screen) {
+                            is Screen.ModeSelect -> {
+                                ModeSelectScreen(
+                                    onSelectMode = { score, left, right ->
+                                        currentScreen = Screen.Match(score, left, right)
+                                    }
+                                )
+                            }
+                            is Screen.Match -> {
+                                BackHandler {
                                     currentScreen = Screen.ModeSelect
                                 }
-                            )
+
+                                MatchScoreScreen(
+                                    targetScore = screen.targetScore,
+                                    initialLeftName = screen.leftName,
+                                    initialRightName = screen.rightName,
+                                    onExitToHome = {
+                                        currentScreen = Screen.ModeSelect
+                                    }
+                                )
+                            }
                         }
                     }
                 }
