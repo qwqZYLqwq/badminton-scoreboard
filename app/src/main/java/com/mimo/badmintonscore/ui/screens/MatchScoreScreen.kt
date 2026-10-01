@@ -166,7 +166,7 @@ fun MatchScoreScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    // Team Name Badge
+                    // 1. Team Name Badge
                     Surface(
                         color = Color(0x33000000),
                         shape = RoundedCornerShape(16.dp)
@@ -176,26 +176,13 @@ fun MatchScoreScreen(
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // Serving court indicator (左单右双，0算双数)
-                    ServingIndicator(
-                        isServing = matchState.servingSide == TeamSide.LEFT && !matchState.isGameOver,
-                        serverScore = matchState.leftScore,
-                        isRightCourt = matchState.isServingFromRightCourt,
-                        onToggleServer = {
-                            refreshInteraction()
-                            matchState = matchState.toggleServer()
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // Giant Score Number with shrink-then-expand bounce
+                    // 2. Giant Score Number with shrink-then-expand bounce
                     Text(
                         text = matchState.leftScore.toString(),
                         fontSize = 130.sp,
@@ -205,13 +192,27 @@ fun MatchScoreScreen(
                         lineHeight = 130.sp
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
+                    // 3. 点击加分 / 加分赛提示
                     Text(
                         text = if (matchState.isDeuce) "加分赛 (封顶${matchState.capScore}分)" else "点击加分",
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = if (matchState.isDeuce) ServerGold else Color(0x99FFFFFF),
                         fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 4. Serving court indicator below "点击加分" (左单右双，0算双数)
+                    ServingIndicator(
+                        isServing = matchState.servingSide == TeamSide.LEFT && !matchState.isGameOver,
+                        serverScore = matchState.leftScore,
+                        isRightCourt = matchState.isServingFromRightCourt,
+                        onToggleServer = {
+                            refreshInteraction()
+                            matchState = matchState.toggleServer()
+                        }
                     )
                 }
             }
@@ -246,7 +247,7 @@ fun MatchScoreScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    // Team Name Badge
+                    // 1. Team Name Badge
                     Surface(
                         color = Color(0x33000000),
                         shape = RoundedCornerShape(16.dp)
@@ -256,26 +257,13 @@ fun MatchScoreScreen(
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // Serving court indicator (左单右双，0算双数)
-                    ServingIndicator(
-                        isServing = matchState.servingSide == TeamSide.RIGHT && !matchState.isGameOver,
-                        serverScore = matchState.rightScore,
-                        isRightCourt = matchState.isServingFromRightCourt,
-                        onToggleServer = {
-                            refreshInteraction()
-                            matchState = matchState.toggleServer()
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // Giant Score Number with shrink-then-expand bounce
+                    // 2. Giant Score Number with shrink-then-expand bounce
                     Text(
                         text = matchState.rightScore.toString(),
                         fontSize = 130.sp,
@@ -285,13 +273,27 @@ fun MatchScoreScreen(
                         lineHeight = 130.sp
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
+                    // 3. 点击加分 / 加分赛提示
                     Text(
                         text = if (matchState.isDeuce) "加分赛 (封顶${matchState.capScore}分)" else "点击加分",
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = if (matchState.isDeuce) ServerGold else Color(0x99FFFFFF),
                         fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 4. Serving court indicator below "点击加分" (左单右双，0算双数)
+                    ServingIndicator(
+                        isServing = matchState.servingSide == TeamSide.RIGHT && !matchState.isGameOver,
+                        serverScore = matchState.rightScore,
+                        isRightCourt = matchState.isServingFromRightCourt,
+                        onToggleServer = {
+                            refreshInteraction()
+                            matchState = matchState.toggleServer()
+                        }
                     )
                 }
             }
@@ -375,7 +377,7 @@ fun ServingIndicator(
                 .border(1.dp, ServerGold.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -460,13 +462,13 @@ fun ServingIndicator(
                 .clickable { onToggleServer() }
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "接发球方",
                     color = Color(0x66FFFFFF),
-                    fontSize = 11.sp
+                    fontSize = 12.sp
                 )
             }
         }
