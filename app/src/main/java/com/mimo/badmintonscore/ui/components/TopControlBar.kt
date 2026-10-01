@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mimo.badmintonscore.model.MatchState
 import com.mimo.badmintonscore.model.TeamSide
+import com.mimo.badmintonscore.ui.theme.ServerGold
 import com.mimo.badmintonscore.ui.theme.TeamBluePrimary
 import com.mimo.badmintonscore.ui.theme.TeamRedPrimary
 
@@ -32,6 +33,7 @@ fun TopControlBar(
     matchState: MatchState,
     onAddScore: (TeamSide) -> Unit,
     onMinusScore: (TeamSide) -> Unit,
+    onToggleServer: () -> Unit,
     onSwapSides: () -> Unit,
     onUndo: () -> Unit,
     onReset: () -> Unit,
@@ -160,6 +162,19 @@ fun TopControlBar(
                         )
                     }
 
+                    // Toggle server button
+                    IconButton(
+                        onClick = onToggleServer,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.SportsTennis,
+                            contentDescription = "切换发球方",
+                            tint = ServerGold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
                     // Undo
                     IconButton(
                         onClick = onUndo,
@@ -265,4 +280,3 @@ fun TopControlBar(
         }
     }
 }
-
