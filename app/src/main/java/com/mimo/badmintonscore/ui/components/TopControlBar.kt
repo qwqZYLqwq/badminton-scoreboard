@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,14 +61,14 @@ fun TopControlBar(
                 shadowElevation = 6.dp
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = "展开控制栏",
                         tint = Color(0xFFF1F5F9),
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -76,6 +77,20 @@ fun TopControlBar(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // 大比分简要徽章
+                    Surface(
+                        color = Color(0x660F172A),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = " 局分 ${matchState.leftGamesWon} | ${matchState.rightGamesWon} ",
+                            color = Color(0xFFFACC15),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            modifier = Modifier.padding(vertical = 1.dp)
+                        )
+                    }
                 }
             }
         }
@@ -95,11 +110,14 @@ fun TopControlBar(
             ) {
                 Row(
                     modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = 14.dp, vertical = 7.dp)
                         .wrapContentWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    val leftTeamColor = if (!matchState.isSidesSwapped) TeamBluePrimary else TeamRedPrimary
+                    val rightTeamColor = if (!matchState.isSidesSwapped) TeamRedPrimary else TeamBluePrimary
+
                     // LEFT TEAM CONTROLS
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -107,7 +125,7 @@ fun TopControlBar(
                     ) {
                         Text(
                             text = matchState.leftTeamName,
-                            color = TeamBluePrimary,
+                            color = leftTeamColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             modifier = Modifier.padding(horizontal = 4.dp)
@@ -125,7 +143,7 @@ fun TopControlBar(
                                 disabledContentColor = Color.Gray
                             )
                         ) {
-                            Icon(Icons.Default.Remove, contentDescription = "蓝方 -1", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Remove, contentDescription = "左方 -1", modifier = Modifier.size(18.dp))
                         }
 
                         // Left +1
@@ -133,11 +151,11 @@ fun TopControlBar(
                             onClick = { onAddScore(TeamSide.LEFT) },
                             modifier = Modifier.size(34.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = TeamBluePrimary,
+                                containerColor = leftTeamColor,
                                 contentColor = Color.White
                             )
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "蓝方 +1", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Add, contentDescription = "左方 +1", modifier = Modifier.size(18.dp))
                         }
                     }
 
@@ -149,6 +167,46 @@ fun TopControlBar(
                             .background(Color(0xFF334155))
                     )
 
+                    // 大比分显示：在最中间，中间用竖线隔开，三局两胜
+                    Surface(
+                        color = Color(0xFF1E293B),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.border(1.dp, Color(0xFF475569), RoundedCornerShape(8.dp))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Text(
+                                text = "${matchState.leftGamesWon}",
+                                color = leftTeamColor,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "|",
+                                color = Color(0xFF94A3B8),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(horizontal = 2.dp)
+                            )
+                            Text(
+                                text = "${matchState.rightGamesWon}",
+                                color = rightTeamColor,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = if (matchState.matchType == com.mimo.badmintonscore.model.MatchType.DOUBLES) "双打·第${matchState.currentGameIndex}局" else "第${matchState.currentGameIndex}局",
+                                color = Color(0xFFFACC15),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
                     // Target badge
                     Surface(
                         color = Color(0xFF1E293B),
@@ -158,8 +216,8 @@ fun TopControlBar(
                             text = "${matchState.targetScore}分制",
                             color = Color(0xFFFACC15),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         )
                     }
 
@@ -246,11 +304,11 @@ fun TopControlBar(
                             onClick = { onAddScore(TeamSide.RIGHT) },
                             modifier = Modifier.size(34.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = TeamRedPrimary,
+                                containerColor = rightTeamColor,
                                 contentColor = Color.White
                             )
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "红方 +1", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Add, contentDescription = "右方 +1", modifier = Modifier.size(18.dp))
                         }
 
                         // Right -1
@@ -265,12 +323,12 @@ fun TopControlBar(
                                 disabledContentColor = Color.Gray
                             )
                         ) {
-                            Icon(Icons.Default.Remove, contentDescription = "红方 -1", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Remove, contentDescription = "右方 -1", modifier = Modifier.size(18.dp))
                         }
 
                         Text(
                             text = matchState.rightTeamName,
-                            color = TeamRedPrimary,
+                            color = rightTeamColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             modifier = Modifier.padding(horizontal = 4.dp)

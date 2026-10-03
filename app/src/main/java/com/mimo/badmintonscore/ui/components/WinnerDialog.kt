@@ -176,70 +176,98 @@ fun WinnerDialog(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Final Score Box with 3D shadow
+                    // Final Score Box with 3D shadow (Displaying Sets Won & Game Scores)
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(0.85f)
-                            .height(64.dp)
+                            .fillMaxWidth(0.92f)
+                            .wrapContentHeight()
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
+                                .matchParentSize()
                                 .offset(x = 3.5.dp, y = 3.5.dp)
                                 .background(PopDarkBorder, RoundedCornerShape(16.dp))
                         )
                         Surface(
                             modifier = Modifier
-                                .fillMaxSize()
+                                .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
                                 .border(2.8.dp, PopDarkBorder, RoundedCornerShape(16.dp)),
                             color = Color.White
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 20.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(
-                                    text = matchState.leftTeamName,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = PopBlue,
-                                    modifier = Modifier.weight(1f),
-                                    textAlign = TextAlign.End,
-                                    maxLines = 1
-                                )
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Text(
-                                    text = "${matchState.leftScore}",
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = PopBlue
-                                )
-                                Text(
-                                    text = " : ",
-                                    fontSize = 26.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = PopDarkBorder
-                                )
-                                Text(
-                                    text = "${matchState.rightScore}",
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = PopRed
-                                )
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Text(
-                                    text = matchState.rightTeamName,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = PopRed,
-                                    modifier = Modifier.weight(1f),
-                                    textAlign = TextAlign.Start,
-                                    maxLines = 1
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = matchState.leftTeamName,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PopBlue,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.End,
+                                        maxLines = 1
+                                    )
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Text(
+                                        text = "${matchState.leftGamesWon}",
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = PopBlue
+                                    )
+                                    Text(
+                                        text = " (局分) ",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color(0xFF64748B)
+                                    )
+                                    Text(
+                                        text = "${matchState.rightGamesWon}",
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = PopRed
+                                    )
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Text(
+                                        text = matchState.rightTeamName,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PopRed,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Start,
+                                        maxLines = 1
+                                    )
+                                }
+
+                                if (matchState.gameHistory.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        matchState.gameHistory.forEach { g ->
+                                            Surface(
+                                                color = Color(0xFFF1F5F9),
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = "G${g.gameIndex} [${g.leftScore}:${g.rightScore}]",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF334155),
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

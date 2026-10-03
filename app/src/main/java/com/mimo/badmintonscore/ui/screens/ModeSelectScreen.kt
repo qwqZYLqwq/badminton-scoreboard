@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
@@ -17,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,6 +35,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mimo.badmintonscore.model.MatchType
+import com.mimo.badmintonscore.ui.components.ServeAssistDialog
 
 // Neo-Pop Arcade Palette
 private val PopCreamBg = Color(0xFFFBF7EE)
@@ -50,11 +54,24 @@ private val PopTextMuted = Color(0xFF64748B)
 
 @Composable
 fun ModeSelectScreen(
-    onSelectMode: (targetScore: Int, leftName: String, rightName: String) -> Unit
+    onSelectMode: (
+        targetScore: Int,
+        leftName: String,
+        rightName: String,
+        matchType: MatchType,
+        enableIntervalTimer: Boolean,
+        isServeAssistantEnabled: Boolean,
+        isServeDirectionReversed: Boolean
+    ) -> Unit
 ) {
     var leftTeamName by remember { mutableStateOf("蓝方") }
     var rightTeamName by remember { mutableStateOf("红方") }
+    var matchType by remember { mutableStateOf(MatchType.SINGLES) }
+    var enableIntervalTimer by remember { mutableStateOf(true) }
+    var isServeAssistantEnabled by remember { mutableStateOf(false) }
+    var isServeDirectionReversed by remember { mutableStateOf(false) }
     var showNameEditDialog by remember { mutableStateOf(false) }
+    var showServeAssistDialog by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -84,7 +101,7 @@ fun ModeSelectScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = if (isLandscape) 14.dp else 24.dp)
+                .padding(horizontal = 24.dp, vertical = if (isLandscape) 14.dp else 20.dp)
         ) {
             if (isLandscape) {
                 // ==================== LANDSCAPE LAYOUT ====================
@@ -92,7 +109,7 @@ fun ModeSelectScreen(
                     modifier = Modifier.fillMaxSize(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left Column: Branding & Team Setup
+                    // Left Column: Branding, Team Setup & Singles/Doubles Switch
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -101,27 +118,27 @@ fun ModeSelectScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         // Tilted Mascot Box with 3D shadow
-                        Box(modifier = Modifier.size(68.dp)) {
+                        Box(modifier = Modifier.size(62.dp)) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .offset(x = 3.5.dp, y = 3.5.dp)
-                                    .background(PopDarkBorder, RoundedCornerShape(22.dp))
+                                    .background(PopDarkBorder, RoundedCornerShape(20.dp))
                             )
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .rotate(-3f)
-                                    .clip(RoundedCornerShape(22.dp))
+                                    .clip(RoundedCornerShape(20.dp))
                                     .background(PopYellow)
-                                    .border(3.dp, PopDarkBorder, RoundedCornerShape(22.dp)),
+                                    .border(3.dp, PopDarkBorder, RoundedCornerShape(20.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "🏸", fontSize = 34.sp)
+                                Text(text = "🏸", fontSize = 32.sp)
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         // Title with Neo-Pop 3D shadow
                         Box {
@@ -138,7 +155,7 @@ fun ModeSelectScreen(
                             ) {
                                 Text(
                                     text = "羽毛球比赛计分",
-                                    fontSize = 20.sp,
+                                    fontSize = 19.sp,
                                     fontWeight = FontWeight.Black,
                                     color = PopDarkBorder,
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
@@ -156,7 +173,7 @@ fun ModeSelectScreen(
                             letterSpacing = 2.sp
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         // Team Matchup Pill
                         NeoPopTeamPill(
@@ -165,7 +182,15 @@ fun ModeSelectScreen(
                             onClick = { showNameEditDialog = true }
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 单打 / 双打选择切换器 (在该蓝红方昵称的正下方)
+                        NeoPopMatchTypeSwitch(
+                            selectedType = matchType,
+                            onSelectType = { matchType = it }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
                             text = "💡 进入比赛后自动切为横屏 · 点大色块扣杀加分",
@@ -183,7 +208,7 @@ fun ModeSelectScreen(
                             .background(Color(0x331E1B18))
                     )
 
-                    // Right Column: Neo-Pop Mode Cards
+                    // Right Column: Neo-Pop Mode Cards & Settings
                     Column(
                         modifier = Modifier
                             .weight(1.2f)
@@ -196,30 +221,101 @@ fun ModeSelectScreen(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.sp,
-                            modifier = Modifier.padding(start = 2.dp, bottom = 12.dp)
+                            modifier = Modifier.padding(start = 2.dp, bottom = 8.dp)
                         )
 
                         NeoPopModeCard(
                             score = 15,
                             title = "15 分竞速局",
-                            subtitle = "14平净胜2分 · 封顶21分",
+                            subtitle = "14平净胜2分 · 封顶21分 · 三局两胜",
                             icon = Icons.Default.Bolt,
                             iconColor = PopCardSkyBlue,
                             badgeColor = PopBadgeSkyBlue,
-                            onClick = { onSelectMode(15, leftTeamName, rightTeamName) }
+                            onClick = {
+                                onSelectMode(15, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed)
+                            }
                         )
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         NeoPopModeCard(
-                            score = 31,
-                            title = "31 分大师赛",
-                            subtitle = "30平净胜2分 · 封顶36分",
+                            score = 21,
+                            title = "21 分正规赛",
+                            subtitle = "20平净胜2分 · 封顶30分 · 三局两胜",
                             icon = Icons.Default.Timer,
                             iconColor = PopCardYellow,
                             badgeColor = PopBadgeOrange,
-                            onClick = { onSelectMode(31, leftTeamName, rightTeamName) }
+                            onClick = {
+                                onSelectMode(21, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed)
+                            }
                         )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // 赛制选择下方的设置选项栏：休息计时开关 & 发球辅助设置
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 休息计时开关
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp)),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("⏱️ 休息计时", fontWeight = FontWeight.Black, fontSize = 11.5.sp, color = PopDarkBorder)
+                                        Text("局中与局间倒计时", fontSize = 9.sp, color = PopTextMuted)
+                                    }
+                                    Switch(
+                                        checked = enableIntervalTimer,
+                                        onCheckedChange = { enableIntervalTimer = it },
+                                        modifier = Modifier.scale(0.8f)
+                                    )
+                                }
+                            }
+
+                            // 发球辅助设置按钮 (点击弹出二级菜单)
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp))
+                                    .clickable { showServeAssistDialog = true },
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("📐 发球辅助设置", fontWeight = FontWeight.Black, fontSize = 11.5.sp, color = PopDarkBorder)
+                                        Text(
+                                            text = if (isServeAssistantEnabled) (if (isServeDirectionReversed) "已开启 · 反装" else "已开启 · 默认") else "未开启",
+                                            fontSize = 9.sp,
+                                            color = if (isServeAssistantEnabled) PopBlue else PopTextMuted,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = PopDarkBorder,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -233,30 +329,30 @@ fun ModeSelectScreen(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         // Mascot Box
-                        Box(modifier = Modifier.size(78.dp)) {
+                        Box(modifier = Modifier.size(68.dp)) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .offset(x = 4.dp, y = 4.dp)
-                                    .background(PopDarkBorder, RoundedCornerShape(24.dp))
+                                    .offset(x = 3.5.dp, y = 3.5.dp)
+                                    .background(PopDarkBorder, RoundedCornerShape(22.dp))
                             )
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .rotate(-3f)
-                                    .clip(RoundedCornerShape(24.dp))
+                                    .clip(RoundedCornerShape(22.dp))
                                     .background(PopYellow)
-                                    .border(3.5.dp, PopDarkBorder, RoundedCornerShape(24.dp)),
+                                    .border(3.2.dp, PopDarkBorder, RoundedCornerShape(22.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "🏸", fontSize = 40.sp)
+                                Text(text = "🏸", fontSize = 36.sp)
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         // Neo-Pop Title Badge
                         Box {
@@ -273,25 +369,25 @@ fun ModeSelectScreen(
                             ) {
                                 Text(
                                     text = "羽毛球比赛计分",
-                                    fontSize = 24.sp,
+                                    fontSize = 22.sp,
                                     fontWeight = FontWeight.Black,
                                     color = PopDarkBorder,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp)
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
                             text = "★ ARCADE SCOREKEEPER ★",
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
                             color = PopSubtitlePurple,
                             letterSpacing = 2.sp
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Team Matchup Pill
                         NeoPopTeamPill(
@@ -299,12 +395,20 @@ fun ModeSelectScreen(
                             rightName = rightTeamName,
                             onClick = { showNameEditDialog = true }
                         )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 单打 / 双打选择切换器
+                        NeoPopMatchTypeSwitch(
+                            selectedType = matchType,
+                            onSelectType = { matchType = it }
+                        )
                     }
 
                     // Mode Selection Section
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
                             text = "CHOOSE MATCH MODE / 赛制选择",
@@ -318,22 +422,89 @@ fun ModeSelectScreen(
                         NeoPopModeCard(
                             score = 15,
                             title = "15 分竞速局",
-                            subtitle = "14平净胜2分 · 封顶21分",
+                            subtitle = "14平净胜2分 · 封顶21分 · 三局两胜",
                             icon = Icons.Default.Bolt,
                             iconColor = PopCardSkyBlue,
                             badgeColor = PopBadgeSkyBlue,
-                            onClick = { onSelectMode(15, leftTeamName, rightTeamName) }
+                            onClick = {
+                                onSelectMode(15, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed)
+                            }
                         )
 
                         NeoPopModeCard(
-                            score = 31,
-                            title = "31 分大师赛",
-                            subtitle = "30平净胜2分 · 封顶36分",
+                            score = 21,
+                            title = "21 分正规赛",
+                            subtitle = "20平净胜2分 · 封顶30分 · 三局两胜",
                             icon = Icons.Default.Timer,
                             iconColor = PopCardYellow,
                             badgeColor = PopBadgeOrange,
-                            onClick = { onSelectMode(31, leftTeamName, rightTeamName) }
+                            onClick = {
+                                onSelectMode(21, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed)
+                            }
                         )
+
+                        // 赛制选择下方的设置选项栏：休息计时开关 & 发球辅助设置
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp)),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("⏱️ 休息计时", fontWeight = FontWeight.Black, fontSize = 11.sp, color = PopDarkBorder)
+                                        Text("倒计时提示", fontSize = 9.sp, color = PopTextMuted)
+                                    }
+                                    Switch(
+                                        checked = enableIntervalTimer,
+                                        onCheckedChange = { enableIntervalTimer = it },
+                                        modifier = Modifier.scale(0.75f)
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp))
+                                    .clickable { showServeAssistDialog = true },
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("📐 发球辅助", fontWeight = FontWeight.Black, fontSize = 11.sp, color = PopDarkBorder)
+                                        Text(
+                                            text = if (isServeAssistantEnabled) "已开启" else "未开启",
+                                            fontSize = 9.sp,
+                                            color = if (isServeAssistantEnabled) PopBlue else PopTextMuted,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = PopDarkBorder,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     // Footer Tip
@@ -343,11 +514,22 @@ fun ModeSelectScreen(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
                 }
             }
         }
+    }
+
+    // 发球辅助二级设置菜单弹窗
+    if (showServeAssistDialog) {
+        ServeAssistDialog(
+            isServeAssistEnabled = isServeAssistantEnabled,
+            onToggleServeAssist = { isServeAssistantEnabled = it },
+            isDirectionReversed = isServeDirectionReversed,
+            onToggleDirectionReversed = { isServeDirectionReversed = it },
+            onDismiss = { showServeAssistDialog = false }
+        )
     }
 
     // Name Edit Dialog (Neo-Pop Arcade Style)
@@ -398,6 +580,85 @@ fun ModeSelectScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * Neo-Pop Arcade Single/Double Match Type Switch (单打/双打切换器)
+ */
+@Composable
+private fun NeoPopMatchTypeSwitch(
+    selectedType: MatchType,
+    onSelectType: (MatchType) -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+
+    Box(modifier = Modifier.wrapContentSize()) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .offset(x = 2.5.dp, y = 2.5.dp)
+                .background(PopDarkBorder, RoundedCornerShape(14.dp))
+        )
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color.White,
+            modifier = Modifier.border(2.5.dp, PopDarkBorder, RoundedCornerShape(14.dp))
+        ) {
+            Row(
+                modifier = Modifier.padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 单打
+                val isSingles = selectedType == MatchType.SINGLES
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isSingles) PopYellow else Color.Transparent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            if (!isSingles) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSelectType(MatchType.SINGLES)
+                            }
+                        }
+                        .then(if (isSingles) Modifier.border(1.8.dp, PopDarkBorder, RoundedCornerShape(10.dp)) else Modifier)
+                ) {
+                    Text(
+                        text = "🏸 单打模式",
+                        fontWeight = if (isSingles) FontWeight.Black else FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = PopDarkBorder,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+
+                // 双打
+                val isDoubles = selectedType == MatchType.DOUBLES
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isDoubles) PopYellow else Color.Transparent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            if (!isDoubles) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSelectType(MatchType.DOUBLES)
+                            }
+                        }
+                        .then(if (isDoubles) Modifier.border(1.8.dp, PopDarkBorder, RoundedCornerShape(10.dp)) else Modifier)
+                ) {
+                    Text(
+                        text = "👥 双打模式",
+                        fontWeight = if (isDoubles) FontWeight.Black else FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = PopDarkBorder,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+        }
     }
 }
 

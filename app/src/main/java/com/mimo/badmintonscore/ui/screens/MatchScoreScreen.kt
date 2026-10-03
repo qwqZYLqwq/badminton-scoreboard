@@ -4,10 +4,12 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import androidx.compose.animation.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SportsTennis
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,10 +36,14 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mimo.badmintonscore.model.IntervalType
+import com.mimo.badmintonscore.model.MatchType
 import com.mimo.badmintonscore.model.MatchState
 import com.mimo.badmintonscore.model.TeamSide
 import com.mimo.badmintonscore.ui.components.ActiveShuttlecock
 import com.mimo.badmintonscore.ui.components.ImpactEffect
+import com.mimo.badmintonscore.ui.components.IntervalRestOverlay
+import com.mimo.badmintonscore.ui.components.ServeAssistOverlay
 import com.mimo.badmintonscore.ui.components.SmashAnimationOverlay
 import kotlin.random.Random
 import com.mimo.badmintonscore.ui.components.TopControlBar
@@ -60,6 +67,10 @@ fun MatchScoreScreen(
     targetScore: Int,
     initialLeftName: String,
     initialRightName: String,
+    matchType: MatchType = MatchType.SINGLES,
+    enableIntervalTimer: Boolean = true,
+    isServeAssistantEnabled: Boolean = false,
+    isServeDirectionReversed: Boolean = false,
     onExitToHome: () -> Unit
 ) {
     val context = LocalContext.current
@@ -82,7 +93,8 @@ fun MatchScoreScreen(
             MatchState(
                 targetScore = targetScore,
                 leftTeamName = initialLeftName,
-                rightTeamName = initialRightName
+                rightTeamName = initialRightName,
+                matchType = matchType
             )
         )
     }
@@ -135,6 +147,44 @@ fun MatchScoreScreen(
     val leftScale = remember { Animatable(1f) }
     val rightScale = remember { Animatable(1f) }
 
+    // Court swap notification banner text
+    var activeSwapBanner by remember { mutableStateOf<String?>(null) }
+
+    // In-flight pending points count (to prevent fast clicks from overshooting intervals or set wins)
+    var inFlightLeftPoints by remember { mutableIntStateOf(0) }
+    var inFlightRightPoints by remember { mutableIntStateOf(0) }
+
+    // Clear in-flight states and projectiles whenever interval starts; if timer disabled, proceed immediately
+    LaunchedEffect(matchState.pendingInterval) {
+        if (matchState.pendingInterval != IntervalType.NONE) {
+            activeShuttlecocks.clear()
+            activeImpacts.clear()
+            inFlightLeftPoints = 0
+            inFlightRightPoints = 0
+
+            if (!enableIntervalTimer) {
+                val hint = if (matchState.pendingInterval == IntervalType.SET_BREAK) {
+                    "双方交换场地，第 ${matchState.currentGameIndex + 1} 局开始！"
+                } else if (matchState.isDecidingGame) {
+                    "决胜局达到 ${matchState.intervalScore} 分，双方交换场地！"
+                } else null
+
+                matchState = matchState.proceedToNextGameOrSwap()
+                if (hint != null) {
+                    activeSwapBanner = hint
+                }
+            }
+        }
+    }
+
+    // Auto-dismiss swap banner after 3.2 seconds
+    LaunchedEffect(activeSwapBanner) {
+        if (activeSwapBanner != null) {
+            delay(3200L)
+            activeSwapBanner = null
+        }
+    }
+
     // Main layout with screen shake container (control bar ONLY expands by clicking the top gray rectangle)
     BoxWithConstraints(
         modifier = Modifier
@@ -144,15 +194,47 @@ fun MatchScoreScreen(
         val widthPx = with(LocalDensity.current) { maxWidth.toPx() }
         val heightPx = with(LocalDensity.current) { maxHeight.toPx() }
 
+        fun canLaunchShot(): Boolean {
+            if (matchState.isGameOver || matchState.currentSetWinner != null || matchState.pendingInterval != IntervalType.NONE) {
+                return false
+            }
+
+            val currentProjectedLeft = matchState.leftScore + inFlightLeftPoints
+            val currentProjectedRight = matchState.rightScore + inFlightRightPoints
+
+            // 1. 如果已有飞行中的球已经达到本局获胜条件，禁止再发球（防止快速点击导致超过目标分甚至跳至下一局胜利）
+            if (matchState.checkSetWinner(currentProjectedLeft, currentProjectedRight) ||
+                matchState.checkSetWinner(currentProjectedRight, currentProjectedLeft)) {
+                return false
+            }
+
+            // 2. 如果已有飞行中的球将触发本局技术暂停（如11分或8分），暂停前不得再发球
+            if (!matchState.hasTriggeredIntervalInCurrentGame) {
+                if (currentProjectedLeft >= matchState.intervalScore || currentProjectedRight >= matchState.intervalScore) {
+                    return false
+                }
+            }
+
+            return true
+        }
+
         fun triggerSmashScore(scorerSide: TeamSide) {
-            if (matchState.isGameOver) return
-            // Do NOT auto-open the control bar on score click!
+            if (!canLaunchShot()) return
+
+            // 记录该方有一颗待落地的计分球
+            if (scorerSide == TeamSide.LEFT) {
+                inFlightLeftPoints++
+            } else {
+                inFlightRightPoints++
+            }
 
             // Tactile feedback on launch
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
 
             shotCounter++
             val shotId = System.currentTimeMillis() * 1000 + (shotCounter % 1000)
+            val shotGameIndex = matchState.currentGameIndex
+            val shotBeforeInterval = !matchState.hasTriggeredIntervalInCurrentGame
             val isLeft = scorerSide == TeamSide.LEFT
             val startX = if (isLeft) widthPx * 0.28f else widthPx * 0.72f
             val endX = if (isLeft) widthPx * 0.72f else widthPx * 0.28f
@@ -175,9 +257,25 @@ fun MatchScoreScreen(
             activeShuttlecocks.add(newShuttlecock)
 
             scope.launch {
-                // Flight takes 360ms
+                // Flight takes 360ms - 动画先播放，播放完毕后再计分
                 delay(360L)
                 activeShuttlecocks.removeAll { it.id == shotId }
+
+                // 飞行落地扣减在途计数
+                if (scorerSide == TeamSide.LEFT) {
+                    inFlightLeftPoints = maxOf(0, inFlightLeftPoints - 1)
+                } else {
+                    inFlightRightPoints = maxOf(0, inFlightRightPoints - 1)
+                }
+
+                // 核心安全校验：若局次已改变、已在休息中、当局已有胜者、或该球发射于技术暂停前但暂停已被触发，坚决不加分！
+                if (matchState.currentGameIndex != shotGameIndex ||
+                    matchState.isGameOver ||
+                    matchState.currentSetWinner != null ||
+                    matchState.pendingInterval != IntervalType.NONE ||
+                    (shotBeforeInterval && matchState.hasTriggeredIntervalInCurrentGame)) {
+                    return@launch
+                }
 
                 // 2. Smash hits opponent side! (+1 badge appears on scorer/winner side)
                 val newImpact = ImpactEffect(
@@ -193,7 +291,7 @@ fun MatchScoreScreen(
                 // Strong tactile impact
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
 
-                // 3. Score increments by 1
+                // 3. 动画落地后再真正增加比分
                 matchState = matchState.addPoint(scorerSide)
 
                 // 4. Trigger lively score scale bounce on scorer's side
@@ -223,80 +321,91 @@ fun MatchScoreScreen(
         fun onRightClick() {
             triggerSmashScore(TeamSide.RIGHT)
         }
-        // Split screen: Left half vs Right half
+        val blueGradient = listOf(Color(0xFF0D47A1), Color(0xFF1976D2))
+        val redGradient = listOf(Color(0xFFD32F2F), Color(0xFFB71C1C))
+        val leftCourtColors = if (!matchState.isSidesSwapped) blueGradient else redGradient
+        val rightCourtColors = if (!matchState.isSidesSwapped) redGradient else blueGradient
+
+        // Split screen: Left half vs Right half (colors swap when teams swap sides)
         Row(modifier = Modifier.fillMaxSize()) {
-            // LEFT SIDE: BLUE TEAM
+            // LEFT SIDE
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
                     .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(Color(0xFF0D47A1), Color(0xFF1976D2))
-                        )
+                        brush = Brush.horizontalGradient(colors = leftCourtColors)
                     )
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = rememberRipple(bounded = true, color = Color.White)
-                    ) {
-                        onLeftClick()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
                 ) {
-                    // 1. Team Name Badge
-                    Surface(
-                        color = Color(0x33000000),
-                        shape = RoundedCornerShape(16.dp)
+                    // Clickable area
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = rememberRipple(bounded = true, color = Color.White)
+                            ) {
+                                onLeftClick()
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = matchState.leftTeamName,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
-                        )
-                    }
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            // 1. Team Name Badge
+                            Surface(
+                                color = Color(0x33000000),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Text(
+                                    text = matchState.leftTeamName,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                                )
+                            }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                    // 2. Giant Score Number with shrink-then-expand bounce
-                    Text(
-                        text = matchState.leftScore.toString(),
-                        fontSize = 130.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        modifier = Modifier.scale(leftScale.value),
-                        lineHeight = 130.sp
-                    )
+                            // 2. Giant Score Number with shrink-then-expand bounce
+                            Text(
+                                text = matchState.leftScore.toString(),
+                                fontSize = 130.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                modifier = Modifier.scale(leftScale.value),
+                                lineHeight = 130.sp
+                            )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                    // 3. 点击加分 / 加分赛提示
-                    Text(
-                        text = if (matchState.isDeuce) "加分赛 (封顶${matchState.capScore}分)" else "点击加分",
-                        fontSize = 13.sp,
-                        color = if (matchState.isDeuce) ServerGold else Color(0x99FFFFFF),
-                        fontWeight = FontWeight.Medium
-                    )
+                            // 3. 点击加分 / 加分赛提示
+                            Text(
+                                text = if (matchState.isDeuce) "加分赛 (封顶${matchState.capScore}分)" else "点击加分",
+                                fontSize = 13.sp,
+                                color = if (matchState.isDeuce) ServerGold else Color(0x99FFFFFF),
+                                fontWeight = FontWeight.Medium
+                            )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                    // 4. Serving court indicator below "点击加分" (左单右双，0算双数)
-                    ServingIndicator(
-                        isServing = matchState.servingSide == TeamSide.LEFT && !matchState.isGameOver,
-                        serverScore = matchState.leftScore,
-                        isRightCourt = matchState.isServingFromRightCourt,
-                        onToggleServer = {
-                            refreshInteraction()
-                            matchState = matchState.toggleServer()
+                            // 4. Serving court indicator below "点击加分" (左单右双，0算双数)
+                            ServingIndicator(
+                                isServing = matchState.servingSide == TeamSide.LEFT && !matchState.isGameOver,
+                                serverScore = matchState.leftScore,
+                                isRightCourt = matchState.isServingFromRightCourt,
+                                playerName = if (matchState.matchType == MatchType.DOUBLES && matchState.servingSide == TeamSide.LEFT) matchState.currentServerPlayer else null,
+                                receiverName = if (matchState.matchType == MatchType.DOUBLES && matchState.servingSide == TeamSide.RIGHT) matchState.currentReceiverPlayer else null,
+                                onToggleServer = {
+                                    refreshInteraction()
+                                    matchState = matchState.toggleServer()
+                                }
+                            )
                         }
-                    )
+                    }
                 }
-            }
 
             // NET / COURT DIVIDER
             Box(
@@ -306,24 +415,26 @@ fun MatchScoreScreen(
                     .background(Color(0x88FFFFFF))
             )
 
-            // RIGHT SIDE: RED TEAM
+            // RIGHT SIDE
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
                     .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(Color(0xFFD32F2F), Color(0xFFB71C1C))
-                        )
+                        brush = Brush.horizontalGradient(colors = rightCourtColors)
                     )
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = rememberRipple(bounded = true, color = Color.White)
-                    ) {
-                        onRightClick()
-                    },
-                contentAlignment = Alignment.Center
             ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = rememberRipple(bounded = true, color = Color.White)
+                        ) {
+                            onRightClick()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -371,6 +482,8 @@ fun MatchScoreScreen(
                         isServing = matchState.servingSide == TeamSide.RIGHT && !matchState.isGameOver,
                         serverScore = matchState.rightScore,
                         isRightCourt = matchState.isServingFromRightCourt,
+                        playerName = if (matchState.matchType == MatchType.DOUBLES && matchState.servingSide == TeamSide.RIGHT) matchState.currentServerPlayer else null,
+                        receiverName = if (matchState.matchType == MatchType.DOUBLES && matchState.servingSide == TeamSide.LEFT) matchState.currentReceiverPlayer else null,
                         onToggleServer = {
                             refreshInteraction()
                             matchState = matchState.toggleServer()
@@ -379,6 +492,14 @@ fun MatchScoreScreen(
                 }
             }
         }
+    }
+
+        // SERVE ASSIST OVERLAY (Horizontal dividing line, dashed diagonal arrow & quadrants)
+        ServeAssistOverlay(
+            matchState = matchState,
+            isServeAssistEnabled = isServeAssistantEnabled,
+            isDirectionReversed = isServeDirectionReversed
+        )
 
         // SMASH SHUTTLECOCK & IMPACT ANIMATION OVERLAY
         SmashAnimationOverlay(
@@ -409,23 +530,32 @@ fun MatchScoreScreen(
                 refreshInteraction()
                 activeShuttlecocks.clear()
                 activeImpacts.clear()
+                inFlightLeftPoints = 0
+                inFlightRightPoints = 0
                 matchState = matchState.swapSides()
+                activeSwapBanner = "双方已交换场地"
             },
             onUndo = {
                 refreshInteraction()
                 activeShuttlecocks.clear()
                 activeImpacts.clear()
+                inFlightLeftPoints = 0
+                inFlightRightPoints = 0
                 matchState = matchState.undo()
             },
             onReset = {
                 refreshInteraction()
                 activeShuttlecocks.clear()
                 activeImpacts.clear()
+                inFlightLeftPoints = 0
+                inFlightRightPoints = 0
                 matchState = matchState.reset()
             },
             onExit = {
                 activeShuttlecocks.clear()
                 activeImpacts.clear()
+                inFlightLeftPoints = 0
+                inFlightRightPoints = 0
                 onExitToHome()
             },
             onExpandBar = {
@@ -436,6 +566,65 @@ fun MatchScoreScreen(
                 isTopBarVisible = false
             }
         )
+
+        // COURT SWAP NOTIFICATION BANNER
+        AnimatedVisibility(
+            visible = activeSwapBanner != null,
+            enter = fadeIn() + slideInVertically { -it },
+            exit = fadeOut() + slideOutVertically { -it },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 56.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF0F172A),
+                border = BorderStroke(2.dp, Color(0xFF38BDF8)),
+                shadowElevation = 8.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SwapHoriz,
+                        contentDescription = null,
+                        tint = Color(0xFF38BDF8),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = activeSwapBanner ?: "",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+        }
+
+        // FULLSCREEN EYE-CARE REST OVERLAY (TECHNICAL INTERVAL & SET BREAKS)
+        if (enableIntervalTimer && matchState.pendingInterval != IntervalType.NONE) {
+            IntervalRestOverlay(
+                matchState = matchState,
+                onDismiss = {
+                    val hint = if (matchState.pendingInterval == IntervalType.SET_BREAK) {
+                        "双方交换场地，第 ${matchState.currentGameIndex + 1} 局开始！"
+                    } else if (matchState.isDecidingGame) {
+                        "决胜局达到 ${matchState.intervalScore} 分，双方交换场地！"
+                    } else null
+
+                    activeShuttlecocks.clear()
+                    activeImpacts.clear()
+                    inFlightLeftPoints = 0
+                    inFlightRightPoints = 0
+                    matchState = matchState.dismissInterval()
+                    if (hint != null) {
+                        activeSwapBanner = hint
+                    }
+                }
+            )
+        }
 
         // WINNER POPUP DIALOG (Slight delay on match point so final winning smash & score update finishes cleanly)
         var showWinnerDialog by remember { mutableStateOf(false) }
@@ -456,18 +645,24 @@ fun MatchScoreScreen(
                     showWinnerDialog = false
                     activeShuttlecocks.clear()
                     activeImpacts.clear()
+                    inFlightLeftPoints = 0
+                    inFlightRightPoints = 0
                     matchState = matchState.reset()
                 },
                 onSwapAndRestart = {
                     showWinnerDialog = false
                     activeShuttlecocks.clear()
                     activeImpacts.clear()
+                    inFlightLeftPoints = 0
+                    inFlightRightPoints = 0
                     matchState = matchState.swapSides().reset()
                 },
                 onBackToHome = {
                     showWinnerDialog = false
                     activeShuttlecocks.clear()
                     activeImpacts.clear()
+                    inFlightLeftPoints = 0
+                    inFlightRightPoints = 0
                     onExitToHome()
                 }
             )
@@ -486,6 +681,8 @@ fun ServingIndicator(
     isServing: Boolean,
     serverScore: Int,
     isRightCourt: Boolean,
+    playerName: String? = null,
+    receiverName: String? = null,
     onToggleServer: () -> Unit
 ) {
     if (isServing) {
@@ -502,7 +699,7 @@ fun ServingIndicator(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Shuttlecock icon + Court name
+                // Shuttlecock icon + Court name (plus player name if doubles)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.SportsTennis,
@@ -512,7 +709,7 @@ fun ServingIndicator(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (isRightCourt) "右半场发球" else "左半场发球",
+                        text = if (playerName != null) "$playerName · " + (if (isRightCourt) "右半场发球" else "左半场发球") else if (isRightCourt) "右半场发球" else "左半场发球",
                         color = ServerGold,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
@@ -587,7 +784,7 @@ fun ServingIndicator(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "接发球方",
+                    text = if (receiverName != null) "接发球方 · $receiverName" else "接发球方",
                     color = Color(0x66FFFFFF),
                     fontSize = 12.sp
                 )

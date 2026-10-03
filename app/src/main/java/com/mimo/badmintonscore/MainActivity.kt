@@ -20,9 +20,19 @@ import com.mimo.badmintonscore.ui.screens.MatchScoreScreen
 import com.mimo.badmintonscore.ui.screens.ModeSelectScreen
 import com.mimo.badmintonscore.ui.theme.BadmintonScoreTheme
 
+import com.mimo.badmintonscore.model.MatchType
+
 sealed class Screen {
     object ModeSelect : Screen()
-    data class Match(val targetScore: Int, val leftName: String, val rightName: String) : Screen()
+    data class Match(
+        val targetScore: Int,
+        val leftName: String,
+        val rightName: String,
+        val matchType: MatchType = MatchType.SINGLES,
+        val enableIntervalTimer: Boolean = true,
+        val isServeAssistantEnabled: Boolean = false,
+        val isServeDirectionReversed: Boolean = false
+    ) : Screen()
 }
 
 class MainActivity : ComponentActivity() {
@@ -63,8 +73,16 @@ class MainActivity : ComponentActivity() {
                         when (screen) {
                             is Screen.ModeSelect -> {
                                 ModeSelectScreen(
-                                    onSelectMode = { score, left, right ->
-                                        currentScreen = Screen.Match(score, left, right)
+                                    onSelectMode = { score, left, right, type, intervalTimer, assistEnabled, reversed ->
+                                        currentScreen = Screen.Match(
+                                            targetScore = score,
+                                            leftName = left,
+                                            rightName = right,
+                                            matchType = type,
+                                            enableIntervalTimer = intervalTimer,
+                                            isServeAssistantEnabled = assistEnabled,
+                                            isServeDirectionReversed = reversed
+                                        )
                                     }
                                 )
                             }
@@ -77,6 +95,10 @@ class MainActivity : ComponentActivity() {
                                     targetScore = screen.targetScore,
                                     initialLeftName = screen.leftName,
                                     initialRightName = screen.rightName,
+                                    matchType = screen.matchType,
+                                    enableIntervalTimer = screen.enableIntervalTimer,
+                                    isServeAssistantEnabled = screen.isServeAssistantEnabled,
+                                    isServeDirectionReversed = screen.isServeDirectionReversed,
                                     onExitToHome = {
                                         currentScreen = Screen.ModeSelect
                                     }
