@@ -15,12 +15,14 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.mimo.badmintonscore.model.MatchPreferences
+import com.mimo.badmintonscore.model.MatchType
 import com.mimo.badmintonscore.ui.screens.MatchScoreScreen
 import com.mimo.badmintonscore.ui.screens.ModeSelectScreen
 import com.mimo.badmintonscore.ui.theme.BadmintonScoreTheme
-
-import com.mimo.badmintonscore.model.MatchType
 
 sealed class Screen {
     object ModeSelect : Screen()
@@ -44,6 +46,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             BadmintonScoreTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
+                    val context = LocalContext.current
+                    val matchPrefs = remember { MatchPreferences(context) }
+
+                    var leftTeamName by rememberSaveable { mutableStateOf(matchPrefs.leftTeamName) }
+                    var rightTeamName by rememberSaveable { mutableStateOf(matchPrefs.rightTeamName) }
+                    var matchType by rememberSaveable { mutableStateOf(matchPrefs.matchType) }
+                    var enableIntervalTimer by rememberSaveable { mutableStateOf(matchPrefs.enableIntervalTimer) }
+                    var isServeAssistantEnabled by rememberSaveable { mutableStateOf(matchPrefs.isServeAssistantEnabled) }
+                    var isServeDirectionReversed by rememberSaveable { mutableStateOf(matchPrefs.isServeDirectionReversed) }
+
                     var currentScreen by remember { mutableStateOf<Screen>(Screen.ModeSelect) }
 
                     AnimatedContent(
@@ -73,7 +85,43 @@ class MainActivity : ComponentActivity() {
                         when (screen) {
                             is Screen.ModeSelect -> {
                                 ModeSelectScreen(
+                                    initialLeftName = leftTeamName,
+                                    initialRightName = rightTeamName,
+                                    initialMatchType = matchType,
+                                    initialEnableIntervalTimer = enableIntervalTimer,
+                                    initialServeAssistantEnabled = isServeAssistantEnabled,
+                                    initialServeDirectionReversed = isServeDirectionReversed,
+                                    onSettingsChanged = { left, right, type, timer, assist, reversed ->
+                                        leftTeamName = left
+                                        rightTeamName = right
+                                        matchType = type
+                                        enableIntervalTimer = timer
+                                        isServeAssistantEnabled = assist
+                                        isServeDirectionReversed = reversed
+
+                                        matchPrefs.leftTeamName = left
+                                        matchPrefs.rightTeamName = right
+                                        matchPrefs.matchType = type
+                                        matchPrefs.enableIntervalTimer = timer
+                                        matchPrefs.isServeAssistantEnabled = assist
+                                        matchPrefs.isServeDirectionReversed = reversed
+                                    },
                                     onSelectMode = { score, left, right, type, intervalTimer, assistEnabled, reversed ->
+                                        leftTeamName = left
+                                        rightTeamName = right
+                                        matchType = type
+                                        enableIntervalTimer = intervalTimer
+                                        isServeAssistantEnabled = assistEnabled
+                                        isServeDirectionReversed = reversed
+
+                                        matchPrefs.leftTeamName = left
+                                        matchPrefs.rightTeamName = right
+                                        matchPrefs.matchType = type
+                                        matchPrefs.targetScore = score
+                                        matchPrefs.enableIntervalTimer = intervalTimer
+                                        matchPrefs.isServeAssistantEnabled = assistEnabled
+                                        matchPrefs.isServeDirectionReversed = reversed
+
                                         currentScreen = Screen.Match(
                                             targetScore = score,
                                             leftName = left,

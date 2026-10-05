@@ -549,7 +549,12 @@ fun MatchScoreScreen(
                 activeImpacts.clear()
                 inFlightLeftPoints = 0
                 inFlightRightPoints = 0
-                matchState = matchState.reset()
+                matchState = MatchState(
+                    targetScore = targetScore,
+                    leftTeamName = initialLeftName,
+                    rightTeamName = initialRightName,
+                    matchType = matchType
+                )
             },
             onExit = {
                 activeShuttlecocks.clear()
@@ -647,7 +652,12 @@ fun MatchScoreScreen(
                     activeImpacts.clear()
                     inFlightLeftPoints = 0
                     inFlightRightPoints = 0
-                    matchState = matchState.reset()
+                    matchState = MatchState(
+                        targetScore = targetScore,
+                        leftTeamName = initialLeftName,
+                        rightTeamName = initialRightName,
+                        matchType = matchType
+                    )
                 },
                 onSwapAndRestart = {
                     showWinnerDialog = false
@@ -655,7 +665,12 @@ fun MatchScoreScreen(
                     activeImpacts.clear()
                     inFlightLeftPoints = 0
                     inFlightRightPoints = 0
-                    matchState = matchState.swapSides().reset()
+                    matchState = MatchState(
+                        targetScore = targetScore,
+                        leftTeamName = initialRightName,
+                        rightTeamName = initialLeftName,
+                        matchType = matchType
+                    )
                 },
                 onBackToHome = {
                     showWinnerDialog = false

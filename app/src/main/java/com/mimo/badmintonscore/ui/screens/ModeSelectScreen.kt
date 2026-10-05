@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mimo.badmintonscore.model.MatchType
+import com.mimo.badmintonscore.ui.components.EditTeamNamesDialog
 import com.mimo.badmintonscore.ui.components.ServeAssistDialog
 
 // Neo-Pop Arcade Palette
@@ -54,6 +55,20 @@ private val PopTextMuted = Color(0xFF64748B)
 
 @Composable
 fun ModeSelectScreen(
+    initialLeftName: String = "蓝方",
+    initialRightName: String = "红方",
+    initialMatchType: MatchType = MatchType.SINGLES,
+    initialEnableIntervalTimer: Boolean = true,
+    initialServeAssistantEnabled: Boolean = false,
+    initialServeDirectionReversed: Boolean = false,
+    onSettingsChanged: (
+        leftName: String,
+        rightName: String,
+        matchType: MatchType,
+        enableIntervalTimer: Boolean,
+        isServeAssistantEnabled: Boolean,
+        isServeDirectionReversed: Boolean
+    ) -> Unit = { _, _, _, _, _, _ -> },
     onSelectMode: (
         targetScore: Int,
         leftName: String,
@@ -64,14 +79,25 @@ fun ModeSelectScreen(
         isServeDirectionReversed: Boolean
     ) -> Unit
 ) {
-    var leftTeamName by remember { mutableStateOf("蓝方") }
-    var rightTeamName by remember { mutableStateOf("红方") }
-    var matchType by remember { mutableStateOf(MatchType.SINGLES) }
-    var enableIntervalTimer by remember { mutableStateOf(true) }
-    var isServeAssistantEnabled by remember { mutableStateOf(false) }
-    var isServeDirectionReversed by remember { mutableStateOf(false) }
+    var leftTeamName by remember(initialLeftName) { mutableStateOf(initialLeftName) }
+    var rightTeamName by remember(initialRightName) { mutableStateOf(initialRightName) }
+    var matchType by remember(initialMatchType) { mutableStateOf(initialMatchType) }
+    var enableIntervalTimer by remember(initialEnableIntervalTimer) { mutableStateOf(initialEnableIntervalTimer) }
+    var isServeAssistantEnabled by remember(initialServeAssistantEnabled) { mutableStateOf(initialServeAssistantEnabled) }
+    var isServeDirectionReversed by remember(initialServeDirectionReversed) { mutableStateOf(initialServeDirectionReversed) }
     var showNameEditDialog by remember { mutableStateOf(false) }
     var showServeAssistDialog by remember { mutableStateOf(false) }
+
+    fun notifySettingsChanged(
+        newLeft: String = leftTeamName,
+        newRight: String = rightTeamName,
+        newType: MatchType = matchType,
+        newIntervalTimer: Boolean = enableIntervalTimer,
+        newAssist: Boolean = isServeAssistantEnabled,
+        newReversed: Boolean = isServeDirectionReversed
+    ) {
+        onSettingsChanged(newLeft, newRight, newType, newIntervalTimer, newAssist, newReversed)
+    }
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -187,7 +213,10 @@ fun ModeSelectScreen(
                         // 单打 / 双打选择切换器 (在该蓝红方昵称的正下方)
                         NeoPopMatchTypeSwitch(
                             selectedType = matchType,
-                            onSelectType = { matchType = it }
+                            onSelectType = {
+                                matchType = it
+                                notifySettingsChanged(newType = it)
+                            }
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -277,7 +306,10 @@ fun ModeSelectScreen(
                                     }
                                     Switch(
                                         checked = enableIntervalTimer,
-                                        onCheckedChange = { enableIntervalTimer = it },
+                                        onCheckedChange = {
+                                            enableIntervalTimer = it
+                                            notifySettingsChanged(newIntervalTimer = it)
+                                        },
                                         modifier = Modifier.scale(0.8f)
                                     )
                                 }
@@ -401,7 +433,10 @@ fun ModeSelectScreen(
                         // 单打 / 双打选择切换器
                         NeoPopMatchTypeSwitch(
                             selectedType = matchType,
-                            onSelectType = { matchType = it }
+                            onSelectType = {
+                                matchType = it
+                                notifySettingsChanged(newType = it)
+                            }
                         )
                     }
 
@@ -467,7 +502,10 @@ fun ModeSelectScreen(
                                     }
                                     Switch(
                                         checked = enableIntervalTimer,
-                                        onCheckedChange = { enableIntervalTimer = it },
+                                        onCheckedChange = {
+                                            enableIntervalTimer = it
+                                            notifySettingsChanged(newIntervalTimer = it)
+                                        },
                                         modifier = Modifier.scale(0.75f)
                                     )
                                 }
@@ -525,60 +563,31 @@ fun ModeSelectScreen(
     if (showServeAssistDialog) {
         ServeAssistDialog(
             isServeAssistEnabled = isServeAssistantEnabled,
-            onToggleServeAssist = { isServeAssistantEnabled = it },
+            onToggleServeAssist = {
+                isServeAssistantEnabled = it
+                notifySettingsChanged(newAssist = it)
+            },
             isDirectionReversed = isServeDirectionReversed,
-            onToggleDirectionReversed = { isServeDirectionReversed = it },
+            onToggleDirectionReversed = {
+                isServeDirectionReversed = it
+                notifySettingsChanged(newReversed = it)
+            },
             onDismiss = { showServeAssistDialog = false }
         )
     }
 
     // Name Edit Dialog (Neo-Pop Arcade Style)
     if (showNameEditDialog) {
-        var tempLeft by remember { mutableStateOf(leftTeamName) }
-        var tempRight by remember { mutableStateOf(rightTeamName) }
-
-        AlertDialog(
-            onDismissRequest = { showNameEditDialog = false },
-            title = {
-                Text(
-                    text = "自定义选手 / 战队名称",
-                    fontWeight = FontWeight.Black,
-                    color = PopDarkBorder
-                )
+        EditTeamNamesDialog(
+            initialLeftName = leftTeamName,
+            initialRightName = rightTeamName,
+            onConfirm = { newLeft, newRight ->
+                leftTeamName = newLeft
+                rightTeamName = newRight
+                notifySettingsChanged(newLeft = newLeft, newRight = newRight)
+                showNameEditDialog = false
             },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = tempLeft,
-                        onValueChange = { tempLeft = it },
-                        label = { Text("左侧选手/战队 (蓝方)") },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = tempRight,
-                        onValueChange = { tempRight = it },
-                        label = { Text("右侧选手/战队 (红方)") },
-                        singleLine = true
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        leftTeamName = tempLeft.ifBlank { "蓝方" }
-                        rightTeamName = tempRight.ifBlank { "红方" }
-                        showNameEditDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = PopDarkBorder)
-                ) {
-                    Text("保存", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showNameEditDialog = false }) {
-                    Text("取消", color = PopTextMuted)
-                }
-            }
+            onDismiss = { showNameEditDialog = false }
         )
     }
 }
