@@ -66,18 +66,6 @@ fun IntervalRestOverlay(
         onDismiss()
     }
 
-    // 旋转装饰动画
-    val infiniteTransition = rememberInfiniteTransition(label = "RestGlow")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.98f,
-        targetValue = 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Pulse"
-    )
-
     // 全屏绿色背景容器，双击跳过
     Box(
         modifier = modifier

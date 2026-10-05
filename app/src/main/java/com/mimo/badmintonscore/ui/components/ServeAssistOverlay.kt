@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,35 +45,31 @@ fun ServeAssistOverlay(
 ) {
     if (!isServeAssistEnabled || matchState.isGameOver) return
 
-    val isLeftServer = matchState.servingSide == TeamSide.LEFT
-    val isServingFromRightCourt = matchState.isServingFromRightCourt // 偶数在右发球区
+    val density = LocalDensity.current
+    val dashOnPx = with(density) { 14.dp.toPx() }
+    val dashOffPx = with(density) { 10.dp.toPx() }
+    val dashPeriod = dashOnPx + dashOffPx
+    val intervals = remember(dashOnPx, dashOffPx) { floatArrayOf(dashOnPx, dashOffPx) }
 
-    // 虚线流动动画
+    // 虚线流动动画：以 dashPeriod 一个完整周期循环，首尾无缝衔接，杜绝跳动与卡顿
     val infiniteTransition = rememberInfiniteTransition(label = "ServeDash")
     val dashPhase by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 40f,
+        targetValue = dashPeriod,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
+            animation = tween(durationMillis = 850, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "DashPhase"
     )
 
-    val pulseGlow by infiniteTransition.animateFloat(
-        initialValue = 0.65f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "PulseGlow"
-    )
+    val isLeftServer = matchState.servingSide == TeamSide.LEFT
+    val isServingFromRightCourt = matchState.isServingFromRightCourt // 偶数在右发球区
 
-    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val width = maxWidth
-        val height = maxHeight
+    // 复用 Path 对象，避免在每帧绘制时进行堆内存分配与 GC 暂停
+    val arrowPath = remember { Path() }
 
+    Box(modifier = modifier.fillMaxSize()) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
@@ -133,9 +130,10 @@ fun ServeAssistOverlay(
             }
 
             // 3. 绘制动态流动的发球对角虚线与发球方向箭头
-            val movingDash = PathEffect.dashPathEffect(floatArrayOf(16f, 12f), dashPhase)
+            // 传入 -dashPhase 确保虚线沿发球方向（发球方 -> 接发球方）向前流动，与箭头方向保持完全一致
+            val movingDash = PathEffect.dashPathEffect(intervals, -dashPhase)
             drawLine(
-                color = ServerGold.copy(alpha = 0.85f * pulseGlow),
+                color = ServerGold.copy(alpha = 0.90f),
                 start = Offset(serverX, serverY),
                 end = Offset(receiverX, receiverY),
                 strokeWidth = 3.5.dp.toPx(),
@@ -149,40 +147,43 @@ fun ServeAssistOverlay(
             val ay = serverY + (receiverY - serverY) * arrowT
             val angle = atan2(receiverY - serverY, receiverX - serverX) * 180f / PI.toFloat()
 
+            arrowPath.rewind()
+            val headLen = 14.dp.toPx()
+            val headWidth = 9.dp.toPx()
+            val notch = 4.dp.toPx()
+            arrowPath.moveTo(ax + headLen, ay)
+            arrowPath.lineTo(ax - headLen + notch, ay - headWidth)
+            arrowPath.lineTo(ax - headLen + notch * 2f, ay)
+            arrowPath.lineTo(ax - headLen + notch, ay + headWidth)
+            arrowPath.close()
+
             rotate(degrees = angle, pivot = Offset(ax, ay)) {
-                val arrowPath = Path().apply {
-                    moveTo(ax + 16.dp.toPx(), ay)
-                    lineTo(ax - 10.dp.toPx(), ay - 10.dp.toPx())
-                    lineTo(ax - 4.dp.toPx(), ay)
-                    lineTo(ax - 10.dp.toPx(), ay + 10.dp.toPx())
-                    close()
-                }
                 drawPath(
                     path = arrowPath,
-                    color = ServerGold.copy(alpha = pulseGlow)
+                    color = ServerGold
                 )
             }
 
             // 4. 发球站位光环
             drawCircle(
-                color = ServerGold.copy(alpha = 0.22f * pulseGlow),
-                radius = 42.dp.toPx(),
+                color = ServerGold.copy(alpha = 0.25f),
+                radius = 36.dp.toPx(),
                 center = Offset(serverX, serverY)
             )
             drawCircle(
-                color = ServerGold.copy(alpha = 0.95f),
-                radius = 7.dp.toPx(),
+                color = ServerGold,
+                radius = 6.dp.toPx(),
                 center = Offset(serverX, serverY)
             )
 
             // 5. 接发球目标靶环
             drawCircle(
                 color = Color.White.copy(alpha = 0.20f),
-                radius = 34.dp.toPx(),
+                radius = 32.dp.toPx(),
                 center = Offset(receiverX, receiverY)
             )
             drawCircle(
-                color = Color.White.copy(alpha = 0.75f * pulseGlow),
+                color = Color.White.copy(alpha = 0.85f),
                 radius = 5.dp.toPx(),
                 center = Offset(receiverX, receiverY)
             )
@@ -200,7 +201,7 @@ fun ServeAssistOverlay(
  * 在四个半区显示“右发球区 / 左发球区”与双打时的球员站位提示
  */
 @Composable
-private fun BoxWithConstraintsScope.ServeCourtLabels(
+private fun BoxScope.ServeCourtLabels(
     matchState: MatchState,
     isDirectionReversed: Boolean
 ) {
