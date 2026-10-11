@@ -15,3 +15,5 @@ captures
 
 # Local requirement and note texts
 *.txt
+
+ui_preview.html
