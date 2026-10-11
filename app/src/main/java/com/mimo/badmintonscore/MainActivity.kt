@@ -40,6 +40,7 @@ sealed class Screen {
         val enableIntervalTimer: Boolean = true,
         val isServeAssistantEnabled: Boolean = false,
         val isServeDirectionReversed: Boolean = false,
+        val isHapticEnabled: Boolean = true,
         val initialMatchState: MatchState? = null
     ) : Screen()
 }
@@ -63,6 +64,7 @@ class MainActivity : ComponentActivity() {
                     var enableIntervalTimer by rememberSaveable { mutableStateOf(matchPrefs.enableIntervalTimer) }
                     var isServeAssistantEnabled by rememberSaveable { mutableStateOf(matchPrefs.isServeAssistantEnabled) }
                     var isServeDirectionReversed by rememberSaveable { mutableStateOf(matchPrefs.isServeDirectionReversed) }
+                    var isHapticEnabled by rememberSaveable { mutableStateOf(matchPrefs.isHapticEnabled) }
 
                     var activeMatchRecord by remember {
                         mutableStateOf(ActiveMatchRepository.getActiveMatch(context))
@@ -82,10 +84,11 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // 如果检测到未完成的比赛或从通知栏点击进入，直接恢复至比赛页面
+                    // 启动行为：手动杀后台后重新打开软件，始终停留在首页（ModeSelect），并在主页下方提示上方展示恢复提示
+                    // 仅当用户明确从通知栏点击前台常驻服务进入时，才直接跳转到比赛页面
                     var currentScreen by remember {
                         mutableStateOf<Screen>(
-                            if (activeMatchRecord != null) {
+                            if (intent.getBooleanExtra(MatchKeepAliveService.EXTRA_FROM_NOTIFICATION, false) && activeMatchRecord != null) {
                                 val record = activeMatchRecord!!
                                 Screen.Match(
                                     targetScore = record.matchState.targetScore,
@@ -95,6 +98,7 @@ class MainActivity : ComponentActivity() {
                                     enableIntervalTimer = record.enableIntervalTimer,
                                     isServeAssistantEnabled = record.isServeAssistantEnabled,
                                     isServeDirectionReversed = record.isServeDirectionReversed,
+                                    isHapticEnabled = record.isHapticEnabled,
                                     initialMatchState = record.matchState
                                 )
                             } else {
@@ -135,6 +139,7 @@ class MainActivity : ComponentActivity() {
                                     initialEnableIntervalTimer = enableIntervalTimer,
                                     initialServeAssistantEnabled = isServeAssistantEnabled,
                                     initialServeDirectionReversed = isServeDirectionReversed,
+                                    initialHapticEnabled = isHapticEnabled,
                                     activeMatchRecord = activeMatchRecord,
                                     onResumeMatch = { record ->
                                         currentScreen = Screen.Match(
@@ -145,6 +150,7 @@ class MainActivity : ComponentActivity() {
                                             enableIntervalTimer = record.enableIntervalTimer,
                                             isServeAssistantEnabled = record.isServeAssistantEnabled,
                                             isServeDirectionReversed = record.isServeDirectionReversed,
+                                            isHapticEnabled = record.isHapticEnabled,
                                             initialMatchState = record.matchState
                                         )
                                     },
@@ -153,13 +159,14 @@ class MainActivity : ComponentActivity() {
                                         MatchKeepAliveService.stop(context)
                                         activeMatchRecord = null
                                     },
-                                    onSettingsChanged = { left, right, type, timer, assist, reversed ->
+                                    onSettingsChanged = { left, right, type, timer, assist, reversed, haptic ->
                                         leftTeamName = left
                                         rightTeamName = right
                                         matchType = type
                                         enableIntervalTimer = timer
                                         isServeAssistantEnabled = assist
                                         isServeDirectionReversed = reversed
+                                        isHapticEnabled = haptic
 
                                         matchPrefs.leftTeamName = left
                                         matchPrefs.rightTeamName = right
@@ -167,14 +174,16 @@ class MainActivity : ComponentActivity() {
                                         matchPrefs.enableIntervalTimer = timer
                                         matchPrefs.isServeAssistantEnabled = assist
                                         matchPrefs.isServeDirectionReversed = reversed
+                                        matchPrefs.isHapticEnabled = haptic
                                     },
-                                    onSelectMode = { score, left, right, type, intervalTimer, assistEnabled, reversed ->
+                                    onSelectMode = { score, left, right, type, intervalTimer, assistEnabled, reversed, haptic ->
                                         leftTeamName = left
                                         rightTeamName = right
                                         matchType = type
                                         enableIntervalTimer = intervalTimer
                                         isServeAssistantEnabled = assistEnabled
                                         isServeDirectionReversed = reversed
+                                        isHapticEnabled = haptic
 
                                         matchPrefs.leftTeamName = left
                                         matchPrefs.rightTeamName = right
@@ -183,6 +192,7 @@ class MainActivity : ComponentActivity() {
                                         matchPrefs.enableIntervalTimer = intervalTimer
                                         matchPrefs.isServeAssistantEnabled = assistEnabled
                                         matchPrefs.isServeDirectionReversed = reversed
+                                        matchPrefs.isHapticEnabled = haptic
 
                                         currentScreen = Screen.Match(
                                             targetScore = score,
@@ -191,7 +201,8 @@ class MainActivity : ComponentActivity() {
                                             matchType = type,
                                             enableIntervalTimer = intervalTimer,
                                             isServeAssistantEnabled = assistEnabled,
-                                            isServeDirectionReversed = reversed
+                                            isServeDirectionReversed = reversed,
+                                            isHapticEnabled = haptic
                                         )
                                     }
                                 )
@@ -205,6 +216,7 @@ class MainActivity : ComponentActivity() {
                                     enableIntervalTimer = screen.enableIntervalTimer,
                                     isServeAssistantEnabled = screen.isServeAssistantEnabled,
                                     isServeDirectionReversed = screen.isServeDirectionReversed,
+                                    isHapticEnabled = screen.isHapticEnabled,
                                     initialMatchState = screen.initialMatchState,
                                     onExitToHome = {
                                         activeMatchRecord = ActiveMatchRepository.getActiveMatch(context)

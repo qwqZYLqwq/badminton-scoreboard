@@ -42,6 +42,10 @@ class MatchPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_SERVE_REVERSED, false)
         set(value) = prefs.edit().putBoolean(KEY_SERVE_REVERSED, value).apply()
 
+    var isHapticEnabled: Boolean
+        get() = prefs.getBoolean(KEY_HAPTIC_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_HAPTIC_ENABLED, value).apply()
+
     companion object {
         private const val KEY_LEFT_NAME = "pref_left_team_name"
         private const val KEY_RIGHT_NAME = "pref_right_team_name"
@@ -50,5 +54,6 @@ class MatchPreferences(context: Context) {
         private const val KEY_INTERVAL_TIMER = "pref_interval_timer"
         private const val KEY_SERVE_ASSISTANT = "pref_serve_assistant"
         private const val KEY_SERVE_REVERSED = "pref_serve_reversed"
+        private const val KEY_HAPTIC_ENABLED = "pref_haptic_enabled"
     }
 }

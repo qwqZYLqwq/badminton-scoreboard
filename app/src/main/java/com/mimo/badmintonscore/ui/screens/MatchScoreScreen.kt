@@ -76,12 +76,19 @@ fun MatchScoreScreen(
     enableIntervalTimer: Boolean = true,
     isServeAssistantEnabled: Boolean = false,
     isServeDirectionReversed: Boolean = false,
+    isHapticEnabled: Boolean = true,
     initialMatchState: MatchState? = null,
     onExitToHome: () -> Unit
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
+
+    fun playHaptic(type: HapticFeedbackType) {
+        if (isHapticEnabled) {
+            haptic.performHapticFeedback(type)
+        }
+    }
 
     var showExitDialog by remember { mutableStateOf(false) }
 
@@ -118,7 +125,8 @@ fun MatchScoreScreen(
                 matchState = matchState,
                 enableIntervalTimer = enableIntervalTimer,
                 isServeAssistantEnabled = isServeAssistantEnabled,
-                isServeDirectionReversed = isServeDirectionReversed
+                isServeDirectionReversed = isServeDirectionReversed,
+                isHapticEnabled = isHapticEnabled
             )
             val servingSideName = if (matchState.servingSide == TeamSide.LEFT) matchState.leftTeamName else matchState.rightTeamName
             MatchKeepAliveService.startOrUpdate(
@@ -279,7 +287,7 @@ fun MatchScoreScreen(
             }
 
             // Tactile feedback on launch
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            playHaptic(HapticFeedbackType.TextHandleMove)
 
             shotCounter++
             val shotId = System.currentTimeMillis() * 1000 + (shotCounter % 1000)
@@ -339,7 +347,7 @@ fun MatchScoreScreen(
                 activeImpacts.add(newImpact)
 
                 // Strong tactile impact
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                playHaptic(HapticFeedbackType.LongPress)
 
                 // 3. 动画落地后再真正增加比分
                 matchState = matchState.addPoint(scorerSide)

@@ -9,6 +9,7 @@ data class ActiveMatchRecord(
     val enableIntervalTimer: Boolean,
     val isServeAssistantEnabled: Boolean,
     val isServeDirectionReversed: Boolean,
+    val isHapticEnabled: Boolean = true,
     val savedTimestamp: Long
 )
 
@@ -22,7 +23,8 @@ object ActiveMatchRepository {
         matchState: MatchState,
         enableIntervalTimer: Boolean,
         isServeAssistantEnabled: Boolean,
-        isServeDirectionReversed: Boolean
+        isServeDirectionReversed: Boolean,
+        isHapticEnabled: Boolean = true
     ) {
         if (matchState.isGameOver) {
             clearActiveMatch(context)
@@ -66,6 +68,7 @@ object ActiveMatchRepository {
                 put("enableIntervalTimer", enableIntervalTimer)
                 put("isServeAssistantEnabled", isServeAssistantEnabled)
                 put("isServeDirectionReversed", isServeDirectionReversed)
+                put("isHapticEnabled", isHapticEnabled)
                 put("savedTimestamp", System.currentTimeMillis())
 
                 // 局历史 gameHistory
@@ -232,6 +235,7 @@ object ActiveMatchRepository {
                 enableIntervalTimer = json.optBoolean("enableIntervalTimer", true),
                 isServeAssistantEnabled = json.optBoolean("isServeAssistantEnabled", false),
                 isServeDirectionReversed = json.optBoolean("isServeDirectionReversed", false),
+                isHapticEnabled = json.optBoolean("isHapticEnabled", true),
                 savedTimestamp = json.optLong("savedTimestamp", System.currentTimeMillis())
             )
         } catch (e: Exception) {

@@ -39,7 +39,8 @@ import com.mimo.badmintonscore.model.ActiveMatchRecord
 import com.mimo.badmintonscore.model.MatchType
 import com.mimo.badmintonscore.ui.components.BackgroundProtectionDialog
 import com.mimo.badmintonscore.ui.components.EditTeamNamesDialog
-import com.mimo.badmintonscore.ui.components.ServeAssistDialog
+import com.mimo.badmintonscore.ui.components.SettingsDialog
+import androidx.compose.material.icons.filled.Settings
 
 // Neo-Pop Arcade Palette
 private val PopCreamBg = Color(0xFFFBF7EE)
@@ -63,6 +64,7 @@ fun ModeSelectScreen(
     initialEnableIntervalTimer: Boolean = true,
     initialServeAssistantEnabled: Boolean = false,
     initialServeDirectionReversed: Boolean = false,
+    initialHapticEnabled: Boolean = true,
     activeMatchRecord: ActiveMatchRecord? = null,
     onResumeMatch: (ActiveMatchRecord) -> Unit = {},
     onDiscardMatch: () -> Unit = {},
@@ -72,8 +74,9 @@ fun ModeSelectScreen(
         matchType: MatchType,
         enableIntervalTimer: Boolean,
         isServeAssistantEnabled: Boolean,
-        isServeDirectionReversed: Boolean
-    ) -> Unit = { _, _, _, _, _, _ -> },
+        isServeDirectionReversed: Boolean,
+        isHapticEnabled: Boolean
+    ) -> Unit = { _, _, _, _, _, _, _ -> },
     onSelectMode: (
         targetScore: Int,
         leftName: String,
@@ -81,7 +84,8 @@ fun ModeSelectScreen(
         matchType: MatchType,
         enableIntervalTimer: Boolean,
         isServeAssistantEnabled: Boolean,
-        isServeDirectionReversed: Boolean
+        isServeDirectionReversed: Boolean,
+        isHapticEnabled: Boolean
     ) -> Unit
 ) {
     var leftTeamName by remember(initialLeftName) { mutableStateOf(initialLeftName) }
@@ -90,9 +94,18 @@ fun ModeSelectScreen(
     var enableIntervalTimer by remember(initialEnableIntervalTimer) { mutableStateOf(initialEnableIntervalTimer) }
     var isServeAssistantEnabled by remember(initialServeAssistantEnabled) { mutableStateOf(initialServeAssistantEnabled) }
     var isServeDirectionReversed by remember(initialServeDirectionReversed) { mutableStateOf(initialServeDirectionReversed) }
+    var isHapticEnabled by remember(initialHapticEnabled) { mutableStateOf(initialHapticEnabled) }
     var showNameEditDialog by remember { mutableStateOf(false) }
-    var showServeAssistDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     var showBackgroundProtectionDialog by remember { mutableStateOf(false) }
+
+    val haptic = LocalHapticFeedback.current
+
+    fun playHaptic(type: HapticFeedbackType) {
+        if (isHapticEnabled) {
+            haptic.performHapticFeedback(type)
+        }
+    }
 
     fun notifySettingsChanged(
         newLeft: String = leftTeamName,
@@ -100,9 +113,10 @@ fun ModeSelectScreen(
         newType: MatchType = matchType,
         newIntervalTimer: Boolean = enableIntervalTimer,
         newAssist: Boolean = isServeAssistantEnabled,
-        newReversed: Boolean = isServeDirectionReversed
+        newReversed: Boolean = isServeDirectionReversed,
+        newHaptic: Boolean = isHapticEnabled
     ) {
-        onSettingsChanged(newLeft, newRight, newType, newIntervalTimer, newAssist, newReversed)
+        onSettingsChanged(newLeft, newRight, newType, newIntervalTimer, newAssist, newReversed, newHaptic)
     }
 
     val configuration = LocalConfiguration.current
@@ -219,11 +233,21 @@ fun ModeSelectScreen(
                         // 单打 / 双打选择切换器 (在该蓝红方昵称的正下方)
                         NeoPopMatchTypeSwitch(
                             selectedType = matchType,
+                            isHapticEnabled = isHapticEnabled,
                             onSelectType = {
                                 matchType = it
                                 notifySettingsChanged(newType = it)
                             }
                         )
+
+                        if (activeMatchRecord != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ResumeActiveMatchBanner(
+                                record = activeMatchRecord,
+                                onResume = { onResumeMatch(activeMatchRecord) },
+                                onDiscard = onDiscardMatch
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -290,15 +314,6 @@ fun ModeSelectScreen(
                             }
                         }
 
-                        if (activeMatchRecord != null) {
-                            ResumeActiveMatchCard(
-                                record = activeMatchRecord,
-                                onResume = { onResumeMatch(activeMatchRecord) },
-                                onDiscard = onDiscardMatch
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                        }
-
                         NeoPopModeCard(
                             score = 15,
                             title = "15 分竞速局",
@@ -306,8 +321,9 @@ fun ModeSelectScreen(
                             icon = Icons.Default.Bolt,
                             iconColor = PopCardSkyBlue,
                             badgeColor = PopBadgeSkyBlue,
+                            isHapticEnabled = isHapticEnabled,
                             onClick = {
-                                onSelectMode(15, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed)
+                                onSelectMode(15, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
                             }
                         )
 
@@ -320,14 +336,15 @@ fun ModeSelectScreen(
                             icon = Icons.Default.Timer,
                             iconColor = PopCardYellow,
                             badgeColor = PopBadgeOrange,
+                            isHapticEnabled = isHapticEnabled,
                             onClick = {
-                                onSelectMode(21, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed)
+                                onSelectMode(21, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
                             }
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // 赛制选择下方的设置选项栏：休息计时开关 & 发球辅助设置
+                        // 赛制选择下方的设置选项栏：休息计时开关 & 设置
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -369,14 +386,14 @@ fun ModeSelectScreen(
                                 }
                             }
 
-                            // 发球辅助设置按钮 (点击弹出二级菜单)
+                            // 设置按钮 (点击弹出设置二级弹窗)
                             Surface(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
                                     .clip(RoundedCornerShape(12.dp))
                                     .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp))
-                                    .clickable { showServeAssistDialog = true },
+                                    .clickable { showSettingsDialog = true },
                                 shape = RoundedCornerShape(12.dp),
                                 color = Color.White
                             ) {
@@ -391,11 +408,11 @@ fun ModeSelectScreen(
                                         modifier = Modifier.weight(1f),
                                         verticalArrangement = Arrangement.Center
                                     ) {
-                                        Text("📐 发球辅助设置", fontWeight = FontWeight.Black, fontSize = 11.5.sp, color = PopDarkBorder)
+                                        Text("⚙️ 设置", fontWeight = FontWeight.Black, fontSize = 11.5.sp, color = PopDarkBorder)
                                         Text(
-                                            text = if (isServeAssistantEnabled) (if (isServeDirectionReversed) "已开启 · 反装" else "已开启 · 默认") else "未开启",
+                                            text = "${if (isServeAssistantEnabled) "发球辅助开" else "发球辅助关"} · ${if (isHapticEnabled) "震动开" else "震动关"}",
                                             fontSize = 9.sp,
-                                            color = if (isServeAssistantEnabled) PopBlue else PopTextMuted,
+                                            color = PopTextMuted,
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
@@ -493,6 +510,7 @@ fun ModeSelectScreen(
                         // 单打 / 双打选择切换器
                         NeoPopMatchTypeSwitch(
                             selectedType = matchType,
+                            isHapticEnabled = isHapticEnabled,
                             onSelectType = {
                                 matchType = it
                                 notifySettingsChanged(newType = it)
@@ -545,14 +563,6 @@ fun ModeSelectScreen(
                             }
                         }
 
-                        if (activeMatchRecord != null) {
-                            ResumeActiveMatchCard(
-                                record = activeMatchRecord,
-                                onResume = { onResumeMatch(activeMatchRecord) },
-                                onDiscard = onDiscardMatch
-                            )
-                        }
-
                         NeoPopModeCard(
                             score = 15,
                             title = "15 分竞速局",
@@ -560,8 +570,9 @@ fun ModeSelectScreen(
                             icon = Icons.Default.Bolt,
                             iconColor = PopCardSkyBlue,
                             badgeColor = PopBadgeSkyBlue,
+                            isHapticEnabled = isHapticEnabled,
                             onClick = {
-                                onSelectMode(15, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed)
+                                onSelectMode(15, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
                             }
                         )
 
@@ -572,12 +583,13 @@ fun ModeSelectScreen(
                             icon = Icons.Default.Timer,
                             iconColor = PopCardYellow,
                             badgeColor = PopBadgeOrange,
+                            isHapticEnabled = isHapticEnabled,
                             onClick = {
-                                onSelectMode(21, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed)
+                                onSelectMode(21, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
                             }
                         )
 
-                        // 赛制选择下方的设置选项栏：休息计时开关 & 发球辅助设置
+                        // 赛制选择下方的设置选项栏：休息计时开关 & 设置
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -624,7 +636,7 @@ fun ModeSelectScreen(
                                     .fillMaxHeight()
                                     .clip(RoundedCornerShape(12.dp))
                                     .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp))
-                                    .clickable { showServeAssistDialog = true },
+                                    .clickable { showSettingsDialog = true },
                                 shape = RoundedCornerShape(12.dp),
                                 color = Color.White
                             ) {
@@ -639,11 +651,11 @@ fun ModeSelectScreen(
                                         modifier = Modifier.weight(1f),
                                         verticalArrangement = Arrangement.Center
                                     ) {
-                                        Text("📐 发球辅助", fontWeight = FontWeight.Black, fontSize = 11.sp, color = PopDarkBorder)
+                                        Text("⚙️ 设置", fontWeight = FontWeight.Black, fontSize = 11.sp, color = PopDarkBorder)
                                         Text(
-                                            text = if (isServeAssistantEnabled) (if (isServeDirectionReversed) "已开启 · 反装" else "已开启 · 默认") else "未开启",
+                                            text = "${if (isServeAssistantEnabled) "发球辅助开" else "发球辅助关"} · ${if (isHapticEnabled) "震动开" else "震动关"}",
                                             fontSize = 9.sp,
-                                            color = if (isServeAssistantEnabled) PopBlue else PopTextMuted,
+                                            color = PopTextMuted,
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
@@ -658,32 +670,53 @@ fun ModeSelectScreen(
                         }
                     }
 
-                    // Footer Tip
-                    Text(
-                        text = "💡 进入比赛后自动切为横屏 · 点大色块扣杀加分",
-                        color = PopTextMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    // Footer Section: Active Match Resume Banner + Tip
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (activeMatchRecord != null) {
+                            ResumeActiveMatchBanner(
+                                record = activeMatchRecord,
+                                onResume = { onResumeMatch(activeMatchRecord) },
+                                onDiscard = onDiscardMatch
+                            )
+                        }
+
+                        Text(
+                            text = "💡 进入比赛后自动切为横屏 · 点大色块扣杀加分",
+                            color = PopTextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
     }
 
-    // 发球辅助二级设置菜单弹窗
-    if (showServeAssistDialog) {
-        ServeAssistDialog(
+    // 设置二级弹窗 (发球辅助、反装模式与触控震动)
+    if (showSettingsDialog) {
+        SettingsDialog(
             initialServeAssistEnabled = isServeAssistantEnabled,
             initialDirectionReversed = isServeDirectionReversed,
-            onConfirm = { newAssist, newReversed ->
+            initialHapticEnabled = isHapticEnabled,
+            onConfirm = { newAssist, newReversed, newHaptic ->
                 isServeAssistantEnabled = newAssist
                 isServeDirectionReversed = newReversed
-                notifySettingsChanged(newAssist = newAssist, newReversed = newReversed)
-                showServeAssistDialog = false
+                isHapticEnabled = newHaptic
+                notifySettingsChanged(
+                    newAssist = newAssist,
+                    newReversed = newReversed,
+                    newHaptic = newHaptic
+                )
+                showSettingsDialog = false
             },
-            onDismiss = { showServeAssistDialog = false }
+            onDismiss = { showSettingsDialog = false }
         )
     }
 
@@ -711,10 +744,10 @@ fun ModeSelectScreen(
 }
 
 /**
- * 发现未完成比赛时的恢复卡片 (Neo-Pop Arcade Style)
+ * 发现未完成比赛时的底部恢复横幅 (Neo-Pop Arcade Style，展示在主页下方提示上方)
  */
 @Composable
-private fun ResumeActiveMatchCard(
+private fun ResumeActiveMatchBanner(
     record: ActiveMatchRecord,
     onResume: () -> Unit,
     onDiscard: () -> Unit
@@ -722,63 +755,67 @@ private fun ResumeActiveMatchCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 60.dp)
+            .padding(horizontal = 4.dp)
     ) {
         // 3D 实体黑边阴影
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .offset(x = 3.5.dp, y = 3.5.dp)
-                .background(PopDarkBorder, RoundedCornerShape(16.dp))
+                .offset(x = 2.5.dp, y = 2.5.dp)
+                .background(PopDarkBorder, RoundedCornerShape(12.dp))
         )
 
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .border(2.6.dp, PopDarkBorder, RoundedCornerShape(16.dp)),
+                .clip(RoundedCornerShape(12.dp))
+                .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp)),
             color = Color(0xFFF0FDF4)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
+                            shape = RoundedCornerShape(4.dp),
                             color = Color(0xFF10B981),
-                            modifier = Modifier.border(1.2.dp, PopDarkBorder, RoundedCornerShape(6.dp))
+                            modifier = Modifier.border(1.dp, PopDarkBorder, RoundedCornerShape(4.dp))
                         ) {
                             Text(
-                                text = "进行中",
+                                text = "未完比赛",
                                 color = Color.White,
-                                fontSize = 9.sp,
+                                fontSize = 8.5.sp,
                                 fontWeight = FontWeight.Black,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                             )
                         }
                         Text(
                             text = "${record.matchState.leftTeamName} VS ${record.matchState.rightTeamName}",
-                            fontSize = 13.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Black,
-                            color = PopDarkBorder
+                            color = PopDarkBorder,
+                            maxLines = 1
                         )
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
-                        text = "比分 ${record.matchState.leftScore} : ${record.matchState.rightScore} (第${record.matchState.currentGameIndex}局 · 大比分 ${record.matchState.leftGamesWon}:${record.matchState.rightGamesWon})",
-                        fontSize = 11.sp,
+                        text = "比分 ${record.matchState.leftScore} : ${record.matchState.rightScore} (第${record.matchState.currentGameIndex}局 · ${record.matchState.targetScore}分制)",
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF047857)
+                        color = Color(0xFF047857),
+                        maxLines = 1
                     )
                 }
+
+                Spacer(modifier = Modifier.width(6.dp))
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -787,32 +824,32 @@ private fun ResumeActiveMatchCard(
                     Button(
                         onClick = onResume,
                         colors = ButtonDefaults.buttonColors(containerColor = PopYellow),
-                        shape = RoundedCornerShape(10.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.8.dp, PopDarkBorder),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(34.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.6.dp, PopDarkBorder),
+                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 3.dp),
+                        modifier = Modifier.height(30.dp)
                     ) {
                         Text(
-                            text = "▶ 恢复",
+                            text = "复原",
                             color = PopDarkBorder,
-                            fontSize = 11.5.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Black
                         )
                     }
 
                     OutlinedButton(
                         onClick = onDiscard,
-                        shape = RoundedCornerShape(10.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.6.dp, PopDarkBorder),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.4.dp, PopDarkBorder),
                         colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                        modifier = Modifier.height(34.dp)
+                        contentPadding = PaddingValues(horizontal = 7.dp, vertical = 3.dp),
+                        modifier = Modifier.height(30.dp)
                     ) {
                         Text(
-                            text = "✕",
+                            text = "放弃",
                             color = Color(0xFF64748B),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Black
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -827,6 +864,7 @@ private fun ResumeActiveMatchCard(
 @Composable
 private fun NeoPopMatchTypeSwitch(
     selectedType: MatchType,
+    isHapticEnabled: Boolean = true,
     onSelectType: (MatchType) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
@@ -857,7 +895,9 @@ private fun NeoPopMatchTypeSwitch(
                         .clip(RoundedCornerShape(10.dp))
                         .clickable {
                             if (!isSingles) {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                if (isHapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
                                 onSelectType(MatchType.SINGLES)
                             }
                         }
@@ -881,7 +921,9 @@ private fun NeoPopMatchTypeSwitch(
                         .clip(RoundedCornerShape(10.dp))
                         .clickable {
                             if (!isDoubles) {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                if (isHapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
                                 onSelectType(MatchType.DOUBLES)
                             }
                         }
@@ -979,6 +1021,7 @@ private fun NeoPopModeCard(
     icon: ImageVector,
     iconColor: Color,
     badgeColor: Color,
+    isHapticEnabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -990,7 +1033,9 @@ private fun NeoPopModeCard(
         if (isPressed) return
         isPressed = true
         coroutineScope.launch {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            if (isHapticEnabled) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
             // Physical button press down into shadow (matching the HTML active effect)
             pressOffset.animateTo(3.5f, tween(durationMillis = 70))
             pressOffset.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
