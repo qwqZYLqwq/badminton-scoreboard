@@ -283,7 +283,9 @@ fun ModeSelectScreen(
 
                         // 赛制选择下方的设置选项栏：休息计时开关 & 发球辅助设置
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -291,16 +293,22 @@ fun ModeSelectScreen(
                             Surface(
                                 modifier = Modifier
                                     .weight(1f)
+                                    .fillMaxHeight()
                                     .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp)),
                                 shape = RoundedCornerShape(12.dp),
                                 color = Color.White
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
                                         Text("⏱️ 休息计时", fontWeight = FontWeight.Black, fontSize = 11.5.sp, color = PopDarkBorder)
                                         Text("局中与局间倒计时", fontSize = 9.sp, color = PopTextMuted)
                                     }
@@ -319,6 +327,7 @@ fun ModeSelectScreen(
                             Surface(
                                 modifier = Modifier
                                     .weight(1f)
+                                    .fillMaxHeight()
                                     .clip(RoundedCornerShape(12.dp))
                                     .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp))
                                     .clickable { showServeAssistDialog = true },
@@ -326,11 +335,16 @@ fun ModeSelectScreen(
                                 color = Color.White
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
                                         Text("📐 发球辅助设置", fontWeight = FontWeight.Black, fontSize = 11.5.sp, color = PopDarkBorder)
                                         Text(
                                             text = if (isServeAssistantEnabled) (if (isServeDirectionReversed) "已开启 · 反装" else "已开启 · 默认") else "未开启",
@@ -480,23 +494,31 @@ fun ModeSelectScreen(
 
                         // 赛制选择下方的设置选项栏：休息计时开关 & 发球辅助设置
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Surface(
                                 modifier = Modifier
                                     .weight(1f)
+                                    .fillMaxHeight()
                                     .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp)),
                                 shape = RoundedCornerShape(12.dp),
                                 color = Color.White
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
                                         Text("⏱️ 休息计时", fontWeight = FontWeight.Black, fontSize = 11.sp, color = PopDarkBorder)
                                         Text("倒计时提示", fontSize = 9.sp, color = PopTextMuted)
                                     }
@@ -514,6 +536,7 @@ fun ModeSelectScreen(
                             Surface(
                                 modifier = Modifier
                                     .weight(1f)
+                                    .fillMaxHeight()
                                     .clip(RoundedCornerShape(12.dp))
                                     .border(2.dp, PopDarkBorder, RoundedCornerShape(12.dp))
                                     .clickable { showServeAssistDialog = true },
@@ -521,14 +544,19 @@ fun ModeSelectScreen(
                                 color = Color.White
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
                                         Text("📐 发球辅助", fontWeight = FontWeight.Black, fontSize = 11.sp, color = PopDarkBorder)
                                         Text(
-                                            text = if (isServeAssistantEnabled) "已开启" else "未开启",
+                                            text = if (isServeAssistantEnabled) (if (isServeDirectionReversed) "已开启 · 反装" else "已开启 · 默认") else "未开启",
                                             fontSize = 9.sp,
                                             color = if (isServeAssistantEnabled) PopBlue else PopTextMuted,
                                             fontWeight = FontWeight.Bold
@@ -562,15 +590,13 @@ fun ModeSelectScreen(
     // 发球辅助二级设置菜单弹窗
     if (showServeAssistDialog) {
         ServeAssistDialog(
-            isServeAssistEnabled = isServeAssistantEnabled,
-            onToggleServeAssist = {
-                isServeAssistantEnabled = it
-                notifySettingsChanged(newAssist = it)
-            },
-            isDirectionReversed = isServeDirectionReversed,
-            onToggleDirectionReversed = {
-                isServeDirectionReversed = it
-                notifySettingsChanged(newReversed = it)
+            initialServeAssistEnabled = isServeAssistantEnabled,
+            initialDirectionReversed = isServeDirectionReversed,
+            onConfirm = { newAssist, newReversed ->
+                isServeAssistantEnabled = newAssist
+                isServeDirectionReversed = newReversed
+                notifySettingsChanged(newAssist = newAssist, newReversed = newReversed)
+                showServeAssistDialog = false
             },
             onDismiss = { showServeAssistDialog = false }
         )

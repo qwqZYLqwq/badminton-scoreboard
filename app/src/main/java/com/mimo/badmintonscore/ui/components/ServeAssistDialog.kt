@@ -37,12 +37,14 @@ private val PopTextMuted = Color(0xFF64748B)
 
 @Composable
 fun ServeAssistDialog(
-    isServeAssistEnabled: Boolean,
-    onToggleServeAssist: (Boolean) -> Unit,
-    isDirectionReversed: Boolean,
-    onToggleDirectionReversed: (Boolean) -> Unit,
+    initialServeAssistEnabled: Boolean,
+    initialDirectionReversed: Boolean,
+    onConfirm: (assistEnabled: Boolean, directionReversed: Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var tempAssistEnabled by remember { mutableStateOf(initialServeAssistEnabled) }
+    var tempDirectionReversed by remember { mutableStateOf(initialDirectionReversed) }
+
     val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val confirmPressOffset = remember { Animatable(0f) }
@@ -139,10 +141,10 @@ fun ServeAssistDialog(
                     ServeSettingCard(
                         title = "发球辅助",
                         description = "在计分板上显示球场水平线与发球虚线，实时提示发球站位与对角发球方向",
-                        checked = isServeAssistEnabled,
+                        checked = tempAssistEnabled,
                         onCheckedChange = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onToggleServeAssist(it)
+                            tempAssistEnabled = it
                         }
                     )
 
@@ -152,11 +154,11 @@ fun ServeAssistDialog(
                     ServeSettingCard(
                         title = "方向反装",
                         description = "将发球辅助线与虚线方向颠倒（当手机放置在远离控制栏/反向面对球场时使用）",
-                        checked = isDirectionReversed,
-                        enabled = isServeAssistEnabled,
+                        checked = tempDirectionReversed,
+                        enabled = tempAssistEnabled,
                         onCheckedChange = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onToggleDirectionReversed(it)
+                            tempDirectionReversed = it
                         }
                     )
 
@@ -187,7 +189,7 @@ fun ServeAssistDialog(
                                         confirmPressOffset.animateTo(2.5f, tween(50))
                                         confirmPressOffset.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
                                         delay(40L)
-                                        onDismiss()
+                                        onConfirm(tempAssistEnabled, tempDirectionReversed)
                                     }
                                 },
                             color = PopYellow
