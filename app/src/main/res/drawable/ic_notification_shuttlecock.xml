@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 羽毛球半圆球托 (Cork base) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7.5,17 C6.67,17 6,17.67 6,18.5 C6,20.43 7.57,22 9.5,22 C10.33,22 11,21.33 11,20.5 C11,18.57 9.43,17 7.5,17 Z" />
+    <!-- 羽毛球羽毛网格/扇面 (Feathers) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M8.2,16.2 L17.4,5.4 C17.8,4.9 18.5,4.9 18.9,5.3 L19.7,6.1 C20.1,6.5 20.1,7.2 19.6,7.6 L9.8,17.8 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11.5,14 L19,3.5 C19.3,3.1 19.8,3.1 20.2,3.4 L20.6,3.8 C21,4.2 20.9,4.8 20.5,5.1 L13.5,16 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6.5,14.5 L4.2,6.5 C4,5.9 4.4,5.3 5,5.2 L6.2,5 C6.8,4.9 7.4,5.3 7.5,5.9 L9.5,14 Z" />
+</vector>

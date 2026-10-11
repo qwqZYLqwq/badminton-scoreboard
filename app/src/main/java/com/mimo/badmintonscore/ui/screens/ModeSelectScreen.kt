@@ -35,7 +35,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mimo.badmintonscore.model.ActiveMatchRecord
 import com.mimo.badmintonscore.model.MatchType
+import com.mimo.badmintonscore.ui.components.BackgroundProtectionDialog
 import com.mimo.badmintonscore.ui.components.EditTeamNamesDialog
 import com.mimo.badmintonscore.ui.components.ServeAssistDialog
 
@@ -61,6 +63,9 @@ fun ModeSelectScreen(
     initialEnableIntervalTimer: Boolean = true,
     initialServeAssistantEnabled: Boolean = false,
     initialServeDirectionReversed: Boolean = false,
+    activeMatchRecord: ActiveMatchRecord? = null,
+    onResumeMatch: (ActiveMatchRecord) -> Unit = {},
+    onDiscardMatch: () -> Unit = {},
     onSettingsChanged: (
         leftName: String,
         rightName: String,
@@ -87,6 +92,7 @@ fun ModeSelectScreen(
     var isServeDirectionReversed by remember(initialServeDirectionReversed) { mutableStateOf(initialServeDirectionReversed) }
     var showNameEditDialog by remember { mutableStateOf(false) }
     var showServeAssistDialog by remember { mutableStateOf(false) }
+    var showBackgroundProtectionDialog by remember { mutableStateOf(false) }
 
     fun notifySettingsChanged(
         newLeft: String = leftTeamName,
@@ -244,14 +250,54 @@ fun ModeSelectScreen(
                             .padding(start = 20.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text(
-                            text = "CHOOSE MATCH MODE / 赛制选择",
-                            color = PopDarkBorder,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp,
-                            modifier = Modifier.padding(start = 2.dp, bottom = 8.dp)
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 2.dp, bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "CHOOSE MATCH MODE / 赛制选择",
+                                color = PopDarkBorder,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 1.sp
+                            )
+
+                            // 后台保护入口 Pill
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(1.6.dp, PopDarkBorder, RoundedCornerShape(8.dp))
+                                    .clickable { showBackgroundProtectionDialog = true },
+                                shape = RoundedCornerShape(8.dp),
+                                color = PopYellow
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Text(text = "🛡️", fontSize = 10.sp)
+                                    Text(
+                                        text = "后台保护",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = PopDarkBorder
+                                    )
+                                }
+                            }
+                        }
+
+                        if (activeMatchRecord != null) {
+                            ResumeActiveMatchCard(
+                                record = activeMatchRecord,
+                                onResume = { onResumeMatch(activeMatchRecord) },
+                                onDiscard = onDiscardMatch
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
 
                         NeoPopModeCard(
                             score = 15,
@@ -459,14 +505,53 @@ fun ModeSelectScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            text = "CHOOSE MATCH MODE / 赛制选择",
-                            color = PopDarkBorder,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp,
-                            modifier = Modifier.padding(start = 2.dp, bottom = 2.dp)
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 2.dp, bottom = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "CHOOSE MATCH MODE / 赛制选择",
+                                color = PopDarkBorder,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 1.sp
+                            )
+
+                            // 后台保护入口 Pill
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(1.6.dp, PopDarkBorder, RoundedCornerShape(8.dp))
+                                    .clickable { showBackgroundProtectionDialog = true },
+                                shape = RoundedCornerShape(8.dp),
+                                color = PopYellow
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Text(text = "🛡️", fontSize = 10.sp)
+                                    Text(
+                                        text = "后台保护",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = PopDarkBorder
+                                    )
+                                }
+                            }
+                        }
+
+                        if (activeMatchRecord != null) {
+                            ResumeActiveMatchCard(
+                                record = activeMatchRecord,
+                                onResume = { onResumeMatch(activeMatchRecord) },
+                                onDiscard = onDiscardMatch
+                            )
+                        }
 
                         NeoPopModeCard(
                             score = 15,
@@ -615,6 +700,124 @@ fun ModeSelectScreen(
             },
             onDismiss = { showNameEditDialog = false }
         )
+    }
+
+    // 后台保护设置弹窗
+    if (showBackgroundProtectionDialog) {
+        BackgroundProtectionDialog(
+            onDismiss = { showBackgroundProtectionDialog = false }
+        )
+    }
+}
+
+/**
+ * 发现未完成比赛时的恢复卡片 (Neo-Pop Arcade Style)
+ */
+@Composable
+private fun ResumeActiveMatchCard(
+    record: ActiveMatchRecord,
+    onResume: () -> Unit,
+    onDiscard: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 60.dp)
+    ) {
+        // 3D 实体黑边阴影
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .offset(x = 3.5.dp, y = 3.5.dp)
+                .background(PopDarkBorder, RoundedCornerShape(16.dp))
+        )
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .border(2.6.dp, PopDarkBorder, RoundedCornerShape(16.dp)),
+            color = Color(0xFFF0FDF4)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF10B981),
+                            modifier = Modifier.border(1.2.dp, PopDarkBorder, RoundedCornerShape(6.dp))
+                        ) {
+                            Text(
+                                text = "进行中",
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                            )
+                        }
+                        Text(
+                            text = "${record.matchState.leftTeamName} VS ${record.matchState.rightTeamName}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = PopDarkBorder
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "比分 ${record.matchState.leftScore} : ${record.matchState.rightScore} (第${record.matchState.currentGameIndex}局 · 大比分 ${record.matchState.leftGamesWon}:${record.matchState.rightGamesWon})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF047857)
+                    )
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = onResume,
+                        colors = ButtonDefaults.buttonColors(containerColor = PopYellow),
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.8.dp, PopDarkBorder),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Text(
+                            text = "▶ 恢复",
+                            color = PopDarkBorder,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = onDiscard,
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.6.dp, PopDarkBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Text(
+                            text = "✕",
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

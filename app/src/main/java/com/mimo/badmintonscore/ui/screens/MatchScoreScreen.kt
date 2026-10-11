@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -36,10 +38,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.mimo.badmintonscore.model.ActiveMatchRepository
 import com.mimo.badmintonscore.model.IntervalType
 import com.mimo.badmintonscore.model.MatchType
 import com.mimo.badmintonscore.model.MatchState
 import com.mimo.badmintonscore.model.TeamSide
+import com.mimo.badmintonscore.service.MatchKeepAliveService
 import com.mimo.badmintonscore.ui.components.ActiveShuttlecock
 import com.mimo.badmintonscore.ui.components.ImpactEffect
 import com.mimo.badmintonscore.ui.components.IntervalRestOverlay
@@ -71,32 +76,77 @@ fun MatchScoreScreen(
     enableIntervalTimer: Boolean = true,
     isServeAssistantEnabled: Boolean = false,
     isServeDirectionReversed: Boolean = false,
+    initialMatchState: MatchState? = null,
     onExitToHome: () -> Unit
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
 
-    // Request landscape orientation for match screen
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    // Request landscape orientation & keep screen awake for match screen
     DisposableEffect(Unit) {
         val activity = context.findActivity()
         val originalOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         onDispose {
             activity?.requestedOrientation = originalOrientation
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            MatchKeepAliveService.stop(context)
         }
     }
 
     var matchState by remember {
         mutableStateOf(
-            MatchState(
+            initialMatchState ?: MatchState(
                 targetScore = targetScore,
                 leftTeamName = initialLeftName,
                 rightTeamName = initialRightName,
                 matchType = matchType
             )
         )
+    }
+
+    // 后台保护服务与比赛状态实时持久化同步
+    LaunchedEffect(matchState) {
+        if (!matchState.isGameOver) {
+            ActiveMatchRepository.saveActiveMatch(
+                context = context,
+                matchState = matchState,
+                enableIntervalTimer = enableIntervalTimer,
+                isServeAssistantEnabled = isServeAssistantEnabled,
+                isServeDirectionReversed = isServeDirectionReversed
+            )
+            val servingSideName = if (matchState.servingSide == TeamSide.LEFT) matchState.leftTeamName else matchState.rightTeamName
+            MatchKeepAliveService.startOrUpdate(
+                context = context,
+                leftName = matchState.leftTeamName,
+                rightName = matchState.rightTeamName,
+                leftScore = matchState.leftScore,
+                rightScore = matchState.rightScore,
+                gameIndex = matchState.currentGameIndex,
+                leftGames = matchState.leftGamesWon,
+                rightGames = matchState.rightGamesWon,
+                servingSideName = servingSideName
+            )
+        } else {
+            ActiveMatchRepository.clearActiveMatch(context)
+            MatchKeepAliveService.stop(context)
+        }
+    }
+
+    // 拦截物理/手势返回键，防止误触导致比分中断
+    BackHandler(enabled = true) {
+        if (!matchState.isGameOver && (matchState.leftScore > 0 || matchState.rightScore > 0 || matchState.currentGameIndex > 1)) {
+            showExitDialog = true
+        } else {
+            ActiveMatchRepository.clearActiveMatch(context)
+            MatchKeepAliveService.stop(context)
+            onExitToHome()
+        }
     }
 
     // Top control bar visibility & auto-hide timer (starts collapsed as top gray rectangle)
@@ -557,11 +607,17 @@ fun MatchScoreScreen(
                 )
             },
             onExit = {
-                activeShuttlecocks.clear()
-                activeImpacts.clear()
-                inFlightLeftPoints = 0
-                inFlightRightPoints = 0
-                onExitToHome()
+                if (!matchState.isGameOver && (matchState.leftScore > 0 || matchState.rightScore > 0 || matchState.currentGameIndex > 1)) {
+                    showExitDialog = true
+                } else {
+                    activeShuttlecocks.clear()
+                    activeImpacts.clear()
+                    inFlightLeftPoints = 0
+                    inFlightRightPoints = 0
+                    ActiveMatchRepository.clearActiveMatch(context)
+                    MatchKeepAliveService.stop(context)
+                    onExitToHome()
+                }
             },
             onExpandBar = {
                 isTopBarVisible = true
@@ -678,9 +734,93 @@ fun MatchScoreScreen(
                     activeImpacts.clear()
                     inFlightLeftPoints = 0
                     inFlightRightPoints = 0
+                    ActiveMatchRepository.clearActiveMatch(context)
+                    MatchKeepAliveService.stop(context)
                     onExitToHome()
                 }
             )
+        }
+
+        // EXIT CONFIRMATION DIALOG (防误触退出提示)
+        if (showExitDialog) {
+            Dialog(onDismissRequest = { showExitDialog = false }) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 400.dp)
+                        .fillMaxWidth(0.92f)
+                        .wrapContentHeight()
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .offset(x = 5.dp, y = 5.dp)
+                            .background(Color(0xFF1E1B18), RoundedCornerShape(22.dp))
+                    )
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(22.dp))
+                            .border(3.dp, Color(0xFF1E1B18), RoundedCornerShape(22.dp)),
+                        color = Color(0xFFFBF7EE)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "⏸️ 退出当前比赛？",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFF1E1B18)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "当前比分: ${matchState.leftTeamName} ${matchState.leftScore} : ${matchState.rightScore} ${matchState.rightTeamName}\n\n比赛数据已在后台自动保存，退出后您可在首页随时一键恢复比赛进度。",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                lineHeight = 17.sp
+                            )
+                            Spacer(modifier = Modifier.height(18.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Button(
+                                    onClick = { showExitDialog = false },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD028)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(2.2.dp, Color(0xFF1E1B18)),
+                                    modifier = Modifier.weight(1.2f).height(44.dp)
+                                ) {
+                                    Text("继续比赛", color = Color(0xFF1E1B18), fontWeight = FontWeight.Black, fontSize = 14.sp)
+                                }
+                                Button(
+                                    onClick = {
+                                        showExitDialog = false
+                                        activeShuttlecocks.clear()
+                                        activeImpacts.clear()
+                                        inFlightLeftPoints = 0
+                                        inFlightRightPoints = 0
+                                        MatchKeepAliveService.stop(context)
+                                        onExitToHome()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(2.2.dp, Color(0xFF1E1B18)),
+                                    modifier = Modifier.weight(1f).height(44.dp)
+                                ) {
+                                    Text("保存并退出", color = Color(0xFF1E1B18), fontWeight = FontWeight.Black, fontSize = 13.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
