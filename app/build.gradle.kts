@@ -11,8 +11,8 @@ android {
         applicationId = "com.mimo.badmintonscore"
         minSdk = 24
         targetSdk = 34
-        versionCode = 8
-        versionName = "1.0.8"
+        versionCode = 9
+        versionName = "1.0.9"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -65,6 +65,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.animation:animation")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
