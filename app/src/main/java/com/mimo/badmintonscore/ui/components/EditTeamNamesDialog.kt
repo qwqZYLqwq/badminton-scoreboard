@@ -53,8 +53,6 @@ fun EditTeamNamesDialog(
 
     val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
-    val confirmPressOffset = remember { Animatable(0f) }
-    val cancelPressOffset = remember { Animatable(0f) }
     val swapPressOffset = remember { Animatable(0f) }
     val scrollState = rememberScrollState()
 
@@ -290,17 +288,11 @@ fun EditTeamNamesDialog(
                             Surface(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .offset(x = cancelPressOffset.value.dp, y = cancelPressOffset.value.dp)
                                     .clip(RoundedCornerShape(14.dp))
                                     .border(2.5.dp, PopDarkBorder, RoundedCornerShape(14.dp))
                                     .clickable {
-                                        coroutineScope.launch {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            cancelPressOffset.animateTo(2.5f, tween(50))
-                                            cancelPressOffset.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
-                                            delay(40L)
-                                            onDismiss()
-                                        }
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onDismiss()
                                     },
                                 color = Color.White
                             ) {
@@ -333,19 +325,13 @@ fun EditTeamNamesDialog(
                             Surface(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .offset(x = confirmPressOffset.value.dp, y = confirmPressOffset.value.dp)
                                     .clip(RoundedCornerShape(14.dp))
                                     .border(2.5.dp, PopDarkBorder, RoundedCornerShape(14.dp))
                                     .clickable {
-                                        coroutineScope.launch {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            confirmPressOffset.animateTo(2.5f, tween(50))
-                                            confirmPressOffset.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
-                                            delay(40L)
-                                            val finalLeft = tempLeft.trim().ifBlank { "蓝方" }
-                                            val finalRight = tempRight.trim().ifBlank { "红方" }
-                                            onConfirm(finalLeft, finalRight)
-                                        }
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        val finalLeft = tempLeft.trim().ifBlank { "蓝方" }
+                                        val finalRight = tempRight.trim().ifBlank { "红方" }
+                                        onConfirm(finalLeft, finalRight)
                                     },
                                 color = PopYellow
                             ) {

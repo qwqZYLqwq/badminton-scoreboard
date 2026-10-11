@@ -45,9 +45,7 @@ fun ServeAssistDialog(
     var tempAssistEnabled by remember { mutableStateOf(initialServeAssistEnabled) }
     var tempDirectionReversed by remember { mutableStateOf(initialDirectionReversed) }
 
-    val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
-    val confirmPressOffset = remember { Animatable(0f) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -180,17 +178,11 @@ fun ServeAssistDialog(
                         Surface(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .offset(x = confirmPressOffset.value.dp, y = confirmPressOffset.value.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .border(2.6.dp, PopDarkBorder, RoundedCornerShape(14.dp))
                                 .clickable {
-                                    coroutineScope.launch {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        confirmPressOffset.animateTo(2.5f, tween(50))
-                                        confirmPressOffset.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
-                                        delay(40L)
-                                        onConfirm(tempAssistEnabled, tempDirectionReversed)
-                                    }
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onConfirm(tempAssistEnabled, tempDirectionReversed)
                                 },
                             color = PopYellow
                         ) {
