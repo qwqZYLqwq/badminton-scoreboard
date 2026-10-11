@@ -56,6 +56,7 @@ data class MatchState(
     val matchType: MatchType = MatchType.SINGLES,
     val servingSide: TeamSide = TeamSide.LEFT,
     val isSidesSwapped: Boolean = false,
+    val totalGames: Int = 3,
 
     // 双打球员站位记录
     val leftPlayer1: String = "蓝方一号",
@@ -78,7 +79,7 @@ data class MatchState(
     val gameHistory: List<GameResult> = emptyList(),
     val history: List<ScoreSnapshot> = emptyList(),
     val currentSetWinner: TeamSide? = null,
-    val winner: TeamSide? = null // 全场比赛胜者（达到2局胜）
+    val winner: TeamSide? = null // 全场比赛胜者（达到胜局数）
 ) {
     val isGameOver: Boolean
         get() = winner != null
@@ -98,9 +99,9 @@ data class MatchState(
     val isDeuce: Boolean
         get() = leftScore >= deuceScore && rightScore >= deuceScore && !isGameOver && currentSetWinner == null
 
-    // 是否为决胜局（第三局，或前两局1:1平）
+    // 是否为决胜局（一局定胜的首局、第三局，或前两局1:1平）
     val isDecidingGame: Boolean
-        get() = currentGameIndex == 3 || (leftGamesWon == 1 && rightGamesWon == 1)
+        get() = totalGames == 1 || currentGameIndex == 3 || (leftGamesWon == 1 && rightGamesWon == 1)
 
     // 当前发球方当前局的分数
     val currentServerScore: Int
@@ -213,7 +214,8 @@ data class MatchState(
             val setWinner = scorerSide
             val newLeftGamesWon = if (setWinner == TeamSide.LEFT) leftGamesWon + 1 else leftGamesWon
             val newRightGamesWon = if (setWinner == TeamSide.RIGHT) rightGamesWon + 1 else rightGamesWon
-            val isMatchWon = newLeftGamesWon >= 2 || newRightGamesWon >= 2
+            val gamesToWin = if (totalGames == 1) 1 else 2
+            val isMatchWon = newLeftGamesWon >= gamesToWin || newRightGamesWon >= gamesToWin
             val gameResult = GameResult(
                 gameIndex = currentGameIndex,
                 leftScore = newLeftScore,

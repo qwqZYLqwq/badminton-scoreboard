@@ -198,8 +198,9 @@ fun TopControlBar(
                                 fontSize = 16.sp
                             )
                             Spacer(modifier = Modifier.width(3.dp))
+                            val gameText = if (matchState.totalGames == 1) "一局定胜" else "第${matchState.currentGameIndex}局"
                             Text(
-                                text = if (matchState.matchType == com.mimo.badmintonscore.model.MatchType.DOUBLES) "双打·第${matchState.currentGameIndex}局" else "第${matchState.currentGameIndex}局",
+                                text = if (matchState.matchType == com.mimo.badmintonscore.model.MatchType.DOUBLES) "双打·$gameText" else gameText,
                                 color = Color(0xFFFACC15),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 10.sp

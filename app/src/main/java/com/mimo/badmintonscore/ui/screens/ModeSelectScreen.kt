@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mimo.badmintonscore.model.ActiveMatchRecord
 import com.mimo.badmintonscore.model.MatchType
-import com.mimo.badmintonscore.ui.components.BackgroundProtectionDialog
 import com.mimo.badmintonscore.ui.components.EditTeamNamesDialog
 import com.mimo.badmintonscore.ui.components.SettingsDialog
 import androidx.compose.material.icons.filled.Settings
@@ -61,6 +60,7 @@ fun ModeSelectScreen(
     initialLeftName: String = "蓝方",
     initialRightName: String = "红方",
     initialMatchType: MatchType = MatchType.SINGLES,
+    initialTotalGames: Int = 3,
     initialEnableIntervalTimer: Boolean = true,
     initialServeAssistantEnabled: Boolean = false,
     initialServeDirectionReversed: Boolean = false,
@@ -72,16 +72,18 @@ fun ModeSelectScreen(
         leftName: String,
         rightName: String,
         matchType: MatchType,
+        totalGames: Int,
         enableIntervalTimer: Boolean,
         isServeAssistantEnabled: Boolean,
         isServeDirectionReversed: Boolean,
         isHapticEnabled: Boolean
-    ) -> Unit = { _, _, _, _, _, _, _ -> },
+    ) -> Unit = { _, _, _, _, _, _, _, _ -> },
     onSelectMode: (
         targetScore: Int,
         leftName: String,
         rightName: String,
         matchType: MatchType,
+        totalGames: Int,
         enableIntervalTimer: Boolean,
         isServeAssistantEnabled: Boolean,
         isServeDirectionReversed: Boolean,
@@ -91,13 +93,13 @@ fun ModeSelectScreen(
     var leftTeamName by remember(initialLeftName) { mutableStateOf(initialLeftName) }
     var rightTeamName by remember(initialRightName) { mutableStateOf(initialRightName) }
     var matchType by remember(initialMatchType) { mutableStateOf(initialMatchType) }
+    var totalGames by remember(initialTotalGames) { mutableStateOf(initialTotalGames) }
     var enableIntervalTimer by remember(initialEnableIntervalTimer) { mutableStateOf(initialEnableIntervalTimer) }
     var isServeAssistantEnabled by remember(initialServeAssistantEnabled) { mutableStateOf(initialServeAssistantEnabled) }
     var isServeDirectionReversed by remember(initialServeDirectionReversed) { mutableStateOf(initialServeDirectionReversed) }
     var isHapticEnabled by remember(initialHapticEnabled) { mutableStateOf(initialHapticEnabled) }
     var showNameEditDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
-    var showBackgroundProtectionDialog by remember { mutableStateOf(false) }
 
     val haptic = LocalHapticFeedback.current
 
@@ -111,12 +113,13 @@ fun ModeSelectScreen(
         newLeft: String = leftTeamName,
         newRight: String = rightTeamName,
         newType: MatchType = matchType,
+        newTotalGames: Int = totalGames,
         newIntervalTimer: Boolean = enableIntervalTimer,
         newAssist: Boolean = isServeAssistantEnabled,
         newReversed: Boolean = isServeDirectionReversed,
         newHaptic: Boolean = isHapticEnabled
     ) {
-        onSettingsChanged(newLeft, newRight, newType, newIntervalTimer, newAssist, newReversed, newHaptic)
+        onSettingsChanged(newLeft, newRight, newType, newTotalGames, newIntervalTimer, newAssist, newReversed, newHaptic)
     }
 
     val configuration = LocalConfiguration.current
@@ -240,6 +243,18 @@ fun ModeSelectScreen(
                             }
                         )
 
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 三局两胜 / 一局定胜 局数切换器 (在单打双打正下方)
+                        NeoPopGameFormatSwitch(
+                            totalGames = totalGames,
+                            isHapticEnabled = isHapticEnabled,
+                            onSelectFormat = {
+                                totalGames = it
+                                notifySettingsChanged(newTotalGames = it)
+                            }
+                        )
+
                         if (activeMatchRecord != null) {
                             Spacer(modifier = Modifier.height(8.dp))
                             ResumeActiveMatchBanner(
@@ -274,56 +289,25 @@ fun ModeSelectScreen(
                             .padding(start = 20.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 2.dp, bottom = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "CHOOSE MATCH MODE / 赛制选择",
-                                color = PopDarkBorder,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 1.sp
-                            )
-
-                            // 后台保护入口 Pill
-                            Surface(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .border(1.6.dp, PopDarkBorder, RoundedCornerShape(8.dp))
-                                    .clickable { showBackgroundProtectionDialog = true },
-                                shape = RoundedCornerShape(8.dp),
-                                color = PopYellow
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                ) {
-                                    Text(text = "🛡️", fontSize = 10.sp)
-                                    Text(
-                                        text = "后台保护",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = PopDarkBorder
-                                    )
-                                }
-                            }
-                        }
+                        Text(
+                            text = "CHOOSE MATCH MODE / 赛制选择",
+                            color = PopDarkBorder,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(start = 2.dp, bottom = 8.dp)
+                        )
 
                         NeoPopModeCard(
                             score = 15,
                             title = "15 分竞速局",
-                            subtitle = "14平净胜2分 · 封顶21分 · 三局两胜",
+                            subtitle = if (totalGames == 1) "14平净胜2分 · 封顶21分 · 一局定胜" else "14平净胜2分 · 封顶21分 · 三局两胜",
                             icon = Icons.Default.Bolt,
                             iconColor = PopCardSkyBlue,
                             badgeColor = PopBadgeSkyBlue,
                             isHapticEnabled = isHapticEnabled,
                             onClick = {
-                                onSelectMode(15, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
+                                onSelectMode(15, leftTeamName, rightTeamName, matchType, totalGames, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
                             }
                         )
 
@@ -332,13 +316,13 @@ fun ModeSelectScreen(
                         NeoPopModeCard(
                             score = 21,
                             title = "21 分正规赛",
-                            subtitle = "20平净胜2分 · 封顶30分 · 三局两胜",
+                            subtitle = if (totalGames == 1) "20平净胜2分 · 封顶30分 · 一局定胜" else "20平净胜2分 · 封顶30分 · 三局两胜",
                             icon = Icons.Default.Timer,
                             iconColor = PopCardYellow,
                             badgeColor = PopBadgeOrange,
                             isHapticEnabled = isHapticEnabled,
                             onClick = {
-                                onSelectMode(21, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
+                                onSelectMode(21, leftTeamName, rightTeamName, matchType, totalGames, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
                             }
                         )
 
@@ -516,6 +500,18 @@ fun ModeSelectScreen(
                                 notifySettingsChanged(newType = it)
                             }
                         )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 三局两胜 / 一局定胜 局数切换器 (在单打双打正下方)
+                        NeoPopGameFormatSwitch(
+                            totalGames = totalGames,
+                            isHapticEnabled = isHapticEnabled,
+                            onSelectFormat = {
+                                totalGames = it
+                                notifySettingsChanged(newTotalGames = it)
+                            }
+                        )
                     }
 
                     // Mode Selection Section
@@ -523,69 +519,38 @@ fun ModeSelectScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 2.dp, bottom = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "CHOOSE MATCH MODE / 赛制选择",
-                                color = PopDarkBorder,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 1.sp
-                            )
-
-                            // 后台保护入口 Pill
-                            Surface(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .border(1.6.dp, PopDarkBorder, RoundedCornerShape(8.dp))
-                                    .clickable { showBackgroundProtectionDialog = true },
-                                shape = RoundedCornerShape(8.dp),
-                                color = PopYellow
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                ) {
-                                    Text(text = "🛡️", fontSize = 10.sp)
-                                    Text(
-                                        text = "后台保护",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = PopDarkBorder
-                                    )
-                                }
-                            }
-                        }
+                        Text(
+                            text = "CHOOSE MATCH MODE / 赛制选择",
+                            color = PopDarkBorder,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(start = 2.dp, bottom = 2.dp)
+                        )
 
                         NeoPopModeCard(
                             score = 15,
                             title = "15 分竞速局",
-                            subtitle = "14平净胜2分 · 封顶21分 · 三局两胜",
+                            subtitle = if (totalGames == 1) "14平净胜2分 · 封顶21分 · 一局定胜" else "14平净胜2分 · 封顶21分 · 三局两胜",
                             icon = Icons.Default.Bolt,
                             iconColor = PopCardSkyBlue,
                             badgeColor = PopBadgeSkyBlue,
                             isHapticEnabled = isHapticEnabled,
                             onClick = {
-                                onSelectMode(15, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
+                                onSelectMode(15, leftTeamName, rightTeamName, matchType, totalGames, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
                             }
                         )
 
                         NeoPopModeCard(
                             score = 21,
                             title = "21 分正规赛",
-                            subtitle = "20平净胜2分 · 封顶30分 · 三局两胜",
+                            subtitle = if (totalGames == 1) "20平净胜2分 · 封顶30分 · 一局定胜" else "20平净胜2分 · 封顶30分 · 三局两胜",
                             icon = Icons.Default.Timer,
                             iconColor = PopCardYellow,
                             badgeColor = PopBadgeOrange,
                             isHapticEnabled = isHapticEnabled,
                             onClick = {
-                                onSelectMode(21, leftTeamName, rightTeamName, matchType, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
+                                onSelectMode(21, leftTeamName, rightTeamName, matchType, totalGames, enableIntervalTimer, isServeAssistantEnabled, isServeDirectionReversed, isHapticEnabled)
                             }
                         )
 
@@ -734,13 +699,6 @@ fun ModeSelectScreen(
             onDismiss = { showNameEditDialog = false }
         )
     }
-
-    // 后台保护设置弹窗
-    if (showBackgroundProtectionDialog) {
-        BackgroundProtectionDialog(
-            onDismiss = { showBackgroundProtectionDialog = false }
-        )
-    }
 }
 
 /**
@@ -806,8 +764,9 @@ private fun ResumeActiveMatchBanner(
                         )
                     }
                     Spacer(modifier = Modifier.height(1.dp))
+                    val gameFormatText = if (record.matchState.totalGames == 1) "一局定胜" else "第${record.matchState.currentGameIndex}局"
                     Text(
-                        text = "比分 ${record.matchState.leftScore} : ${record.matchState.rightScore} (第${record.matchState.currentGameIndex}局 · ${record.matchState.targetScore}分制)",
+                        text = "比分 ${record.matchState.leftScore} : ${record.matchState.rightScore} ($gameFormatText · ${record.matchState.targetScore}分制)",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF047857),
@@ -932,6 +891,90 @@ private fun NeoPopMatchTypeSwitch(
                     Text(
                         text = "👥 双打模式",
                         fontWeight = if (isDoubles) FontWeight.Black else FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = PopDarkBorder,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Neo-Pop Arcade Game Format Switch (三局两胜 / 一局定胜 局数切换器)
+ */
+@Composable
+private fun NeoPopGameFormatSwitch(
+    totalGames: Int,
+    isHapticEnabled: Boolean = true,
+    onSelectFormat: (Int) -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+
+    Box(modifier = Modifier.wrapContentSize()) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .offset(x = 2.5.dp, y = 2.5.dp)
+                .background(PopDarkBorder, RoundedCornerShape(14.dp))
+        )
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color.White,
+            modifier = Modifier.border(2.5.dp, PopDarkBorder, RoundedCornerShape(14.dp))
+        ) {
+            Row(
+                modifier = Modifier.padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 三局两胜
+                val isBestOf3 = totalGames == 3
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isBestOf3) PopYellow else Color.Transparent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            if (!isBestOf3) {
+                                if (isHapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                                onSelectFormat(3)
+                            }
+                        }
+                        .then(if (isBestOf3) Modifier.border(1.8.dp, PopDarkBorder, RoundedCornerShape(10.dp)) else Modifier)
+                ) {
+                    Text(
+                        text = "🏆 三局两胜",
+                        fontWeight = if (isBestOf3) FontWeight.Black else FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = PopDarkBorder,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+
+                // 一局定胜
+                val isBestOf1 = totalGames == 1
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isBestOf1) PopYellow else Color.Transparent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            if (!isBestOf1) {
+                                if (isHapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                                onSelectFormat(1)
+                            }
+                        }
+                        .then(if (isBestOf1) Modifier.border(1.8.dp, PopDarkBorder, RoundedCornerShape(10.dp)) else Modifier)
+                ) {
+                    Text(
+                        text = "⚡ 一局定胜",
+                        fontWeight = if (isBestOf1) FontWeight.Black else FontWeight.Bold,
                         fontSize = 12.sp,
                         color = PopDarkBorder,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)

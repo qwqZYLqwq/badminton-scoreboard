@@ -37,6 +37,7 @@ sealed class Screen {
         val leftName: String,
         val rightName: String,
         val matchType: MatchType = MatchType.SINGLES,
+        val totalGames: Int = 3,
         val enableIntervalTimer: Boolean = true,
         val isServeAssistantEnabled: Boolean = false,
         val isServeDirectionReversed: Boolean = false,
@@ -61,6 +62,7 @@ class MainActivity : ComponentActivity() {
                     var leftTeamName by rememberSaveable { mutableStateOf(matchPrefs.leftTeamName) }
                     var rightTeamName by rememberSaveable { mutableStateOf(matchPrefs.rightTeamName) }
                     var matchType by rememberSaveable { mutableStateOf(matchPrefs.matchType) }
+                    var totalGames by rememberSaveable { mutableStateOf(matchPrefs.totalGames) }
                     var enableIntervalTimer by rememberSaveable { mutableStateOf(matchPrefs.enableIntervalTimer) }
                     var isServeAssistantEnabled by rememberSaveable { mutableStateOf(matchPrefs.isServeAssistantEnabled) }
                     var isServeDirectionReversed by rememberSaveable { mutableStateOf(matchPrefs.isServeDirectionReversed) }
@@ -95,6 +97,7 @@ class MainActivity : ComponentActivity() {
                                     leftName = record.matchState.leftTeamName,
                                     rightName = record.matchState.rightTeamName,
                                     matchType = record.matchState.matchType,
+                                    totalGames = record.matchState.totalGames,
                                     enableIntervalTimer = record.enableIntervalTimer,
                                     isServeAssistantEnabled = record.isServeAssistantEnabled,
                                     isServeDirectionReversed = record.isServeDirectionReversed,
@@ -136,6 +139,7 @@ class MainActivity : ComponentActivity() {
                                     initialLeftName = leftTeamName,
                                     initialRightName = rightTeamName,
                                     initialMatchType = matchType,
+                                    initialTotalGames = totalGames,
                                     initialEnableIntervalTimer = enableIntervalTimer,
                                     initialServeAssistantEnabled = isServeAssistantEnabled,
                                     initialServeDirectionReversed = isServeDirectionReversed,
@@ -147,6 +151,7 @@ class MainActivity : ComponentActivity() {
                                             leftName = record.matchState.leftTeamName,
                                             rightName = record.matchState.rightTeamName,
                                             matchType = record.matchState.matchType,
+                                            totalGames = record.matchState.totalGames,
                                             enableIntervalTimer = record.enableIntervalTimer,
                                             isServeAssistantEnabled = record.isServeAssistantEnabled,
                                             isServeDirectionReversed = record.isServeDirectionReversed,
@@ -159,10 +164,11 @@ class MainActivity : ComponentActivity() {
                                         MatchKeepAliveService.stop(context)
                                         activeMatchRecord = null
                                     },
-                                    onSettingsChanged = { left, right, type, timer, assist, reversed, haptic ->
+                                    onSettingsChanged = { left, right, type, games, timer, assist, reversed, haptic ->
                                         leftTeamName = left
                                         rightTeamName = right
                                         matchType = type
+                                        totalGames = games
                                         enableIntervalTimer = timer
                                         isServeAssistantEnabled = assist
                                         isServeDirectionReversed = reversed
@@ -171,15 +177,17 @@ class MainActivity : ComponentActivity() {
                                         matchPrefs.leftTeamName = left
                                         matchPrefs.rightTeamName = right
                                         matchPrefs.matchType = type
+                                        matchPrefs.totalGames = games
                                         matchPrefs.enableIntervalTimer = timer
                                         matchPrefs.isServeAssistantEnabled = assist
                                         matchPrefs.isServeDirectionReversed = reversed
                                         matchPrefs.isHapticEnabled = haptic
                                     },
-                                    onSelectMode = { score, left, right, type, intervalTimer, assistEnabled, reversed, haptic ->
+                                    onSelectMode = { score, left, right, type, games, intervalTimer, assistEnabled, reversed, haptic ->
                                         leftTeamName = left
                                         rightTeamName = right
                                         matchType = type
+                                        totalGames = games
                                         enableIntervalTimer = intervalTimer
                                         isServeAssistantEnabled = assistEnabled
                                         isServeDirectionReversed = reversed
@@ -188,6 +196,7 @@ class MainActivity : ComponentActivity() {
                                         matchPrefs.leftTeamName = left
                                         matchPrefs.rightTeamName = right
                                         matchPrefs.matchType = type
+                                        matchPrefs.totalGames = games
                                         matchPrefs.targetScore = score
                                         matchPrefs.enableIntervalTimer = intervalTimer
                                         matchPrefs.isServeAssistantEnabled = assistEnabled
@@ -199,6 +208,7 @@ class MainActivity : ComponentActivity() {
                                             leftName = left,
                                             rightName = right,
                                             matchType = type,
+                                            totalGames = games,
                                             enableIntervalTimer = intervalTimer,
                                             isServeAssistantEnabled = assistEnabled,
                                             isServeDirectionReversed = reversed,
@@ -213,6 +223,7 @@ class MainActivity : ComponentActivity() {
                                     initialLeftName = screen.leftName,
                                     initialRightName = screen.rightName,
                                     matchType = screen.matchType,
+                                    totalGames = screen.totalGames,
                                     enableIntervalTimer = screen.enableIntervalTimer,
                                     isServeAssistantEnabled = screen.isServeAssistantEnabled,
                                     isServeDirectionReversed = screen.isServeDirectionReversed,

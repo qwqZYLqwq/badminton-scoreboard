@@ -73,6 +73,7 @@ fun MatchScoreScreen(
     initialLeftName: String,
     initialRightName: String,
     matchType: MatchType = MatchType.SINGLES,
+    totalGames: Int = 3,
     enableIntervalTimer: Boolean = true,
     isServeAssistantEnabled: Boolean = false,
     isServeDirectionReversed: Boolean = false,
@@ -112,7 +113,8 @@ fun MatchScoreScreen(
                 targetScore = targetScore,
                 leftTeamName = initialLeftName,
                 rightTeamName = initialRightName,
-                matchType = matchType
+                matchType = matchType,
+                totalGames = totalGames
             )
         )
     }
@@ -611,7 +613,8 @@ fun MatchScoreScreen(
                     targetScore = targetScore,
                     leftTeamName = initialLeftName,
                     rightTeamName = initialRightName,
-                    matchType = matchType
+                    matchType = matchType,
+                    totalGames = totalGames
                 )
             },
             onExit = {
@@ -720,7 +723,8 @@ fun MatchScoreScreen(
                         targetScore = targetScore,
                         leftTeamName = initialLeftName,
                         rightTeamName = initialRightName,
-                        matchType = matchType
+                        matchType = matchType,
+                        totalGames = totalGames
                     )
                 },
                 onSwapAndRestart = {
@@ -733,7 +737,8 @@ fun MatchScoreScreen(
                         targetScore = targetScore,
                         leftTeamName = initialRightName,
                         rightTeamName = initialLeftName,
-                        matchType = matchType
+                        matchType = matchType,
+                        totalGames = totalGames
                     )
                 },
                 onBackToHome = {
@@ -754,10 +759,10 @@ fun MatchScoreScreen(
             Dialog(onDismissRequest = { showExitDialog = false }) {
                 Box(
                     modifier = Modifier
-                        .widthIn(max = 400.dp)
-                        .fillMaxWidth(0.92f)
+                        .widthIn(max = 440.dp)
+                        .fillMaxWidth(0.94f)
                         .wrapContentHeight()
-                        .padding(12.dp),
+                        .padding(10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
@@ -776,7 +781,7 @@ fun MatchScoreScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(20.dp),
+                                .padding(horizontal = 20.dp, vertical = 18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
@@ -785,28 +790,21 @@ fun MatchScoreScreen(
                                 fontWeight = FontWeight.Black,
                                 color = Color(0xFF1E1B18)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "当前比分: ${matchState.leftTeamName} ${matchState.leftScore} : ${matchState.rightScore} ${matchState.rightTeamName}\n\n比赛数据已在后台自动保存，退出后您可在首页随时一键恢复比赛进度。",
+                                text = "当前比分: ${matchState.leftTeamName} ${matchState.leftScore} : ${matchState.rightScore} ${matchState.rightTeamName} (第${matchState.currentGameIndex}局)\n\n选择【保存并退出】可在主页一键恢复进度；选择【不保存退出】将清空本场比分数据。",
                                 fontSize = 12.sp,
                                 color = Color(0xFF64748B),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 lineHeight = 17.sp
                             )
-                            Spacer(modifier = Modifier.height(18.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // 退出选项行：保存并退出 vs 不保存退出
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Button(
-                                    onClick = { showExitDialog = false },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD028)),
-                                    shape = RoundedCornerShape(12.dp),
-                                    border = BorderStroke(2.2.dp, Color(0xFF1E1B18)),
-                                    modifier = Modifier.weight(1.2f).height(44.dp)
-                                ) {
-                                    Text("继续比赛", color = Color(0xFF1E1B18), fontWeight = FontWeight.Black, fontSize = 14.sp)
-                                }
                                 Button(
                                     onClick = {
                                         showExitDialog = false
@@ -814,16 +812,91 @@ fun MatchScoreScreen(
                                         activeImpacts.clear()
                                         inFlightLeftPoints = 0
                                         inFlightRightPoints = 0
+                                        ActiveMatchRepository.saveActiveMatch(
+                                            context = context,
+                                            matchState = matchState,
+                                            enableIntervalTimer = enableIntervalTimer,
+                                            isServeAssistantEnabled = isServeAssistantEnabled,
+                                            isServeDirectionReversed = isServeDirectionReversed,
+                                            isHapticEnabled = isHapticEnabled
+                                        )
+                                        MatchKeepAliveService.stop(context)
+                                        onExitToHome()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF0FDF4)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(2.dp, Color(0xFF1E1B18)),
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                                    modifier = Modifier.weight(1f).height(42.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text("💾", fontSize = 12.sp)
+                                        Text(
+                                            text = "保存并退出",
+                                            color = Color(0xFF166534),
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
+                                }
+
+                                Button(
+                                    onClick = {
+                                        showExitDialog = false
+                                        activeShuttlecocks.clear()
+                                        activeImpacts.clear()
+                                        inFlightLeftPoints = 0
+                                        inFlightRightPoints = 0
+                                        ActiveMatchRepository.clearActiveMatch(context)
                                         MatchKeepAliveService.stop(context)
                                         onExitToHome()
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                                     shape = RoundedCornerShape(12.dp),
-                                    border = BorderStroke(2.2.dp, Color(0xFF1E1B18)),
-                                    modifier = Modifier.weight(1f).height(44.dp)
+                                    border = BorderStroke(2.dp, Color(0xFF1E1B18)),
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                                    modifier = Modifier.weight(1f).height(42.dp)
                                 ) {
-                                    Text("保存并退出", color = Color(0xFF1E1B18), fontWeight = FontWeight.Black, fontSize = 13.sp)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text("✕", fontSize = 11.sp, color = Color(0xFFDC2626), fontWeight = FontWeight.Black)
+                                        Text(
+                                            text = "不保存退出",
+                                            color = Color(0xFFDC2626),
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // 主操作：继续比赛 (醒目黄色按钮)
+                            Button(
+                                onClick = { showExitDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B)),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(2.2.dp, Color(0xFF1E1B18)),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                modifier = Modifier.fillMaxWidth().height(44.dp)
+                            ) {
+                                Text(
+                                    text = "▶ 继续比赛",
+                                    color = Color(0xFF1E1B18),
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 14.5.sp,
+                                    maxLines = 1
+                                )
                             }
                         }
                     }

@@ -34,6 +34,7 @@ object ActiveMatchRepository {
         try {
             val json = JSONObject().apply {
                 put("targetScore", matchState.targetScore)
+                put("totalGames", matchState.totalGames)
                 put("leftScore", matchState.leftScore)
                 put("rightScore", matchState.rightScore)
                 put("leftGamesWon", matchState.leftGamesWon)
@@ -201,6 +202,7 @@ object ActiveMatchRepository {
 
             val matchState = MatchState(
                 targetScore = json.optInt("targetScore", 21),
+                totalGames = json.optInt("totalGames", 3),
                 leftScore = json.optInt("leftScore", 0),
                 rightScore = json.optInt("rightScore", 0),
                 leftGamesWon = json.optInt("leftGamesWon", 0),

@@ -46,10 +46,15 @@ class MatchPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_HAPTIC_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_HAPTIC_ENABLED, value).apply()
 
+    var totalGames: Int
+        get() = prefs.getInt(KEY_TOTAL_GAMES, 3)
+        set(value) = prefs.edit().putInt(KEY_TOTAL_GAMES, value).apply()
+
     companion object {
         private const val KEY_LEFT_NAME = "pref_left_team_name"
         private const val KEY_RIGHT_NAME = "pref_right_team_name"
         private const val KEY_MATCH_TYPE = "pref_match_type"
+        private const val KEY_TOTAL_GAMES = "pref_total_games"
         private const val KEY_TARGET_SCORE = "pref_target_score"
         private const val KEY_INTERVAL_TIMER = "pref_interval_timer"
         private const val KEY_SERVE_ASSISTANT = "pref_serve_assistant"
